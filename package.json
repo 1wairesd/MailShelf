@@ -96,6 +96,7 @@
       "target": "AppImage",
       "icon": "resources/icon.png"
     },
+    "publish": null,
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
