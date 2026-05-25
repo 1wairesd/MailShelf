@@ -1,0 +1,7 @@
+Place icon files here:
+- icon.ico  (Windows, 256x256)
+- icon.icns (macOS)
+- icon.png  (Linux, 512x512)
+
+You can generate them from public/icon.svg using:
+  npx electron-icon-builder --input=public/icon.svg --output=resources
