@@ -49,6 +49,8 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       # Linux needs extra libs for Electron
       - name: Install Linux build deps
@@ -98,6 +100,8 @@ jobs:
     steps:
       - name: Checkout (for package.json version check)
         uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - name: Verify tag matches package.json version
         run: |
