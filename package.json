@@ -1,6 +1,6 @@
 {
   "name": "mailshelf",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A local-first account/email manager for developers and power users",
   "repository": {
     "type": "git",
@@ -86,8 +86,18 @@
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "resources/icon.ico",
       "signingHashAlgorithms": null,
