@@ -90,7 +90,12 @@ try {
 
   console.log(`\n  ✓ Released ${tag}`)
   console.log(`  GitHub Actions will now build for Windows, macOS, and Linux.`)
-  console.log(`  Watch progress at: https://github.com/[owner]/MailShelf/actions\n`)
+
+  // Extract owner/repo from package.json repository URL
+  const repoUrl = typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url ?? ''
+  const match = repoUrl.match(/github\.com[/:]([^/]+\/[^/.]+?)(?:\.git)?$/)
+  const repoPath = match ? match[1] : '[owner]/MailShelf'
+  console.log(`  Watch progress at: https://github.com/${repoPath}/actions\n`)
 } catch (err) {
   console.error('\n  ✗ Git operation failed:', err.message)
   // Rollback package.json
