@@ -93,7 +93,6 @@ jobs:
     name: Publish Release
     needs: build
     runs-on: ubuntu-latest
-    # Only run if all builds succeeded (fail-fast: false means some may have failed)
     if: always() && needs.build.result != 'cancelled'
 
     steps:
@@ -125,9 +124,10 @@ jobs:
         with:
           name: "MailShelf ${{ github.ref_name }}"
           tag_name: ${{ github.ref_name }}
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}  # v1.0.0-beta → prerelease
-          generate_release_notes: true   # auto-generates changelog from commits
+          # Draft if any platform failed — won't show as "latest" until manually published
+          draft: ${{ needs.build.result != 'success' }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
           fail_on_unmatched_files: false
           files: |
             artifacts/**/*.exe
