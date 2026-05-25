@@ -6,6 +6,7 @@ import { SearchBar } from './components/SearchBar'
 import { AccountList } from './components/AccountList'
 import { AccountDetail } from './components/AccountDetail'
 import { AccountForm } from './components/AccountForm'
+import { ConfirmDialog } from './components/ConfirmDialog'
 import { BulkActionBar } from './components/BulkActionBar'
 import { ShortcutsModal } from './components/ShortcutsModal'
 import { ToastProvider } from './components/ui/toast'
@@ -60,6 +61,7 @@ function AppContent() {
 
       {/* Modals */}
       <AccountForm />
+      <ConfirmDialog />
       <ShortcutsModal open={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </div>
   )

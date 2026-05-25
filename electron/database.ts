@@ -241,6 +241,47 @@ export class DatabaseService {
     return updateMany(ids, status)
   }
 
+  /**
+   * Add or remove a tag from multiple accounts atomically.
+   * mode='add'    — appends tag if not already present
+   * mode='remove' — removes tag if present
+   */
+  bulkUpdateTag(ids: string[], tag: string, mode: 'add' | 'remove'): number {
+    const update = this.db.transaction((ids: string[], tag: string, mode: 'add' | 'remove') => {
+      let count = 0
+      const now = new Date().toISOString()
+      const selectStmt = this.db.prepare('SELECT id, tags FROM accounts WHERE id = ?')
+      const updateStmt = this.db.prepare('UPDATE accounts SET tags = ?, updated_at = ? WHERE id = ?')
+
+      for (const id of ids) {
+        const row = selectStmt.get(id) as { id: string; tags: string } | undefined
+        if (!row) continue
+
+        let tags: string[] = []
+        try { tags = JSON.parse(row.tags) } catch { tags = [] }
+
+        let changed = false
+        if (mode === 'add' && !tags.includes(tag)) {
+          tags = [...tags, tag]
+          changed = true
+        } else if (mode === 'remove') {
+          const next = tags.filter(t => t !== tag)
+          if (next.length !== tags.length) {
+            tags = next
+            changed = true
+          }
+        }
+
+        if (changed) {
+          updateStmt.run(JSON.stringify(tags), now, id)
+          count++
+        }
+      }
+      return count
+    })
+    return update(ids, tag, mode)
+  }
+
   getStats(): AccountStats {
     const rows = this.db.prepare(`
       SELECT status, COUNT(*) as count FROM accounts GROUP BY status

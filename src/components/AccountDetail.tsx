@@ -8,7 +8,7 @@ import {
 import { cn, copyToClipboard, formatDate, formatDateFull } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
 import { StatusBadge } from './StatusBadge'
-import { TagBadge } from './TagBadge'
+import { InlineTagEditor } from './TagInput'
 import { Button } from './ui/button'
 import { Select } from './ui/select'
 import { useToast } from './ui/toast'
@@ -20,7 +20,7 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
 }))
 
 export function AccountDetail() {
-  const { accounts, activeAccountId, openEditForm, deleteAccount, updateAccount, setActiveAccount, setConfirmDeleteId } = useAccountStore()
+  const { accounts, activeAccountId, openEditForm, updateAccount, setActiveAccount, showConfirm, deleteAccount, allTags } = useAccountStore()
   const { toast } = useToast()
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [copiedPass, setCopiedPass] = useState(false)
@@ -47,8 +47,16 @@ export function AccountDetail() {
     }
   }
 
-  const handleDelete = async () => {
-    setConfirmDeleteId(account.id)
+  const handleDelete = () => {
+    showConfirm({
+      title: 'Delete account?',
+      description: `This will permanently delete ${account.email}. This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        await deleteAccount(account.id)
+        setActiveAccount(null)
+      },
+    })
   }
 
   const handleStatusChange = async (status: string) => {
@@ -59,6 +67,10 @@ export function AccountDetail() {
   const handleMarkUsed = async () => {
     await updateAccount(account.id, { last_used_at: new Date().toISOString() })
     toast('Marked as used', 'success')
+  }
+
+  const handleTagsChange = async (tags: string[]) => {
+    await updateAccount(account.id, { tags })
   }
 
   return (
@@ -177,19 +189,17 @@ export function AccountDetail() {
         </div>
 
         {/* Tags */}
-        {account.tags.length > 0 && (
-          <div>
-            <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle mb-1.5">
-              <Tag size={10} />
-              Tags
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {account.tags.map(tag => (
-                <TagBadge key={tag} tag={tag} />
-              ))}
-            </div>
-          </div>
-        )}
+        <div>
+          <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle mb-1.5">
+            <Tag size={10} />
+            Tags
+          </label>
+          <InlineTagEditor
+            tags={account.tags}
+            allTags={allTags}
+            onSave={handleTagsChange}
+          />
+        </div>
 
         {/* Notes */}
         {account.notes && (

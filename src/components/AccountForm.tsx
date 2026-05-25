@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, KeyboardEvent } from 'react'
-import { X, Plus } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAccountStore } from '@/store/accountStore'
 import { AccountStatus, PROVIDER_OPTIONS, STATUS_CONFIG } from '@/types'
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from './ui/dialog'
@@ -7,7 +7,7 @@ import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { Button } from './ui/button'
 import { Select } from './ui/select'
-import { TagBadge } from './TagBadge'
+import { TagInput } from './TagInput'
 import { useToast } from './ui/toast'
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
@@ -34,11 +34,11 @@ const defaultForm: FormState = {
 }
 
 export function AccountForm() {
-  const { isFormOpen, editingAccount, closeForm, createAccount, updateAccount } = useAccountStore()
+  const { isFormOpen, editingAccount, closeForm, createAccount, updateAccount, allTags } = useAccountStore()
   const { toast } = useToast()
 
   const [form, setForm] = useState<FormState>(defaultForm)
-  const [tagInput, setTagInput] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -59,8 +59,8 @@ export function AccountForm() {
       } else {
         setForm(defaultForm)
       }
-      setTagInput('')
       setErrors({})
+      setShowPassword(false)
       setTimeout(() => emailRef.current?.focus(), 50)
     }
   }, [isFormOpen, editingAccount])
@@ -121,28 +121,6 @@ export function AccountForm() {
     }
   }
 
-  const addTag = () => {
-    const tag = tagInput.trim().toLowerCase().replace(/\s+/g, '-')
-    if (tag && !form.tags.includes(tag)) {
-      setForm(f => ({ ...f, tags: [...f.tags, tag] }))
-    }
-    setTagInput('')
-  }
-
-  const removeTag = (tag: string) => {
-    setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) }))
-  }
-
-  const handleTagKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      addTag()
-    }
-    if (e.key === 'Backspace' && !tagInput && form.tags.length > 0) {
-      removeTag(form.tags[form.tags.length - 1])
-    }
-  }
-
   return (
     <Dialog open={isFormOpen} onClose={closeForm} className="max-w-md">
       <form onSubmit={handleSubmit}>
@@ -177,14 +155,24 @@ export function AccountForm() {
             <label className="block text-xs font-medium text-shelf-text-muted mb-1.5">
               Password
             </label>
-            <Input
-              type="text"
-              value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              placeholder="Password or app password"
-              className="font-mono"
-              autoComplete="off"
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="Password or app password"
+                className="font-mono pr-9"
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-shelf-text-subtle hover:text-shelf-text transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
           </div>
 
           {/* Provider + Status row */}
@@ -216,25 +204,15 @@ export function AccountForm() {
             <label className="block text-xs font-medium text-shelf-text-muted mb-1.5">
               Tags
             </label>
-            <div className="min-h-[36px] flex flex-wrap gap-1.5 p-2 rounded-md border border-shelf-border bg-shelf-surface focus-within:ring-1 focus-within:ring-shelf-accent focus-within:border-shelf-accent transition-colors">
-              {form.tags.map(tag => (
-                <TagBadge
-                  key={tag}
-                  tag={tag}
-                  onRemove={() => removeTag(tag)}
-                  size="sm"
-                />
-              ))}
-              <input
-                type="text"
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                onBlur={addTag}
-                placeholder={form.tags.length === 0 ? 'Add tags… (Enter or comma)' : ''}
-                className="flex-1 min-w-[120px] bg-transparent text-sm text-shelf-text placeholder:text-shelf-text-subtle outline-none"
-              />
-            </div>
+            <TagInput
+              tags={form.tags}
+              allTags={allTags}
+              onChange={tags => setForm(f => ({ ...f, tags }))}
+              placeholder="Add tags… (Enter or ,)"
+            />
+            <p className="text-[10px] text-shelf-text-subtle mt-1">
+              Start typing to search existing tags or create new ones
+            </p>
           </div>
 
           {/* Notes */}

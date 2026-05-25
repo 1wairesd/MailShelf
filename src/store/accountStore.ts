@@ -42,6 +42,7 @@ interface AccountStore {
   duplicateAccount: (id: string) => Promise<Account | null>
   bulkDelete: (ids: string[]) => Promise<void>
   bulkUpdateStatus: (ids: string[], status: AccountStatus) => Promise<void>
+  bulkUpdateTag: (ids: string[], tag: string, mode: 'add' | 'remove') => Promise<void>
 
   // Filter actions
   setSearch: (query: string) => void
@@ -68,6 +69,22 @@ interface AccountStore {
   // Confirm delete
   confirmDeleteId: string | null
   setConfirmDeleteId: (id: string | null) => void
+
+  // Universal confirm dialog
+  confirmDialog: {
+    open: boolean
+    title: string
+    description: string
+    confirmLabel: string
+    onConfirm: () => void
+  } | null
+  showConfirm: (opts: {
+    title: string
+    description: string
+    confirmLabel?: string
+    onConfirm: () => void
+  }) => void
+  closeConfirm: () => void
 
   // Import/Export
   exportData: () => Promise<{ success: boolean; count?: number }>
@@ -97,6 +114,7 @@ export const useAccountStore = create<AccountStore>()(
     editingAccount: null,
     searchQuery: '',
     confirmDeleteId: null,
+    confirmDialog: null,
 
     loadAccounts: async () => {
       set({ isLoading: true, error: null })
@@ -227,6 +245,16 @@ export const useAccountStore = create<AccountStore>()(
       }
     },
 
+    bulkUpdateTag: async (ids, tag, mode) => {
+      try {
+        await api.accounts.bulkUpdateTag(ids, tag, mode)
+        await get().loadAccounts()
+        await get().loadTags()
+      } catch (err) {
+        set({ error: String(err) })
+      }
+    },
+
     setSearch: (query) => {
       set(state => ({ filters: { ...state.filters, search: query }, searchQuery: query }))
       get().loadAccounts()
@@ -314,6 +342,22 @@ export const useAccountStore = create<AccountStore>()(
 
     setConfirmDeleteId: (id) => {
       set({ confirmDeleteId: id })
+    },
+
+    showConfirm: (opts) => {
+      set({
+        confirmDialog: {
+          open: true,
+          title: opts.title,
+          description: opts.description,
+          confirmLabel: opts.confirmLabel ?? 'Delete',
+          onConfirm: opts.onConfirm,
+        },
+      })
+    },
+
+    closeConfirm: () => {
+      set({ confirmDialog: null })
     },
 
     exportData: async () => {

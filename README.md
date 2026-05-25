@@ -26,14 +26,18 @@ Everything stays on your machine. No cloud, no sync, no telemetry.
 
 - **Fast search** — full-text search across email, notes, and tags (SQLite FTS5)
 - **Status tracking** — Active, Exhausted, Waiting Reset, Dead, Archived
-- **Tags & notes** — organize accounts with free-form tags and per-account notes
+- **Smart tags** — autocomplete from existing tags, create new ones inline, filter by tag in sidebar
+- **Inline tag editing** — add or remove tags directly from the account card or detail panel without opening the form
+- **Bulk tag management** — select multiple accounts and add/remove tags across all of them at once
 - **One-click copy** — copy email or password instantly
 - **Quick status change** — click the status badge on any card to change it
-- **Bulk actions** — select multiple accounts, delete or change status at once
+- **Bulk actions** — select multiple accounts, change status, manage tags, or delete with confirmation
+- **Confirmation dialogs** — all destructive actions require confirmation
 - **Import / Export JSON** — portable backup format
 - **Keyboard shortcuts** — full keyboard navigation, press `?` to see all
 - **Encrypted storage** — passwords encrypted with AES-256-GCM, key protected by OS keychain (DPAPI / Keychain / libsecret)
 - **Virtualized list** — handles thousands of accounts without lag
+- **Update checker** — checks GitHub Releases on startup and notifies when a new version is available
 
 ## Screenshots
 
@@ -45,11 +49,11 @@ Everything stays on your machine. No cloud, no sync, no telemetry.
 
 Go to [**Releases**](../../releases/latest) and download the installer for your platform:
 
-| Platform | Download |
-|----------|----------|
-| 🪟 Windows | [MailShelf Setup.exe](../../releases/latest) |
-| 🍎 macOS | [MailShelf.dmg](../../releases/latest) |
-| 🐧 Linux | [MailShelf.AppImage](../../releases/latest) |
+| Platform | File |
+|----------|------|
+| 🪟 Windows | `MailShelf Setup x.x.x.exe` or portable `.exe` |
+| 🍎 macOS | `MailShelf-x.x.x.dmg` |
+| 🐧 Linux | `MailShelf-x.x.x.AppImage` or `.deb` |
 
 > **Windows note:** You may see a SmartScreen warning on first launch ("Unknown publisher"). Click **More info → Run anyway**. This happens because the app is not code-signed yet.
 
@@ -59,13 +63,26 @@ Go to [**Releases**](../../releases/latest) and download the installer for your 
 git clone https://github.com/yourname/mailshelf.git
 cd mailshelf
 npm install
-npm run dev        # development
-npm run dist:win   # build Windows installer
-npm run dist:mac   # build macOS DMG
-npm run dist:linux # build Linux AppImage
+npm run dev          # development mode
+npm run dist:win     # build Windows installer + portable
+npm run dist:mac     # build macOS DMG
+npm run dist:linux   # build Linux AppImage + deb
 ```
 
 **Requirements:** Node.js 18+
+
+## Releasing a new version
+
+All three platforms are built automatically on GitHub Actions when you push a version tag.
+Use the release script to bump the version, commit, tag, and push in one step:
+
+```bash
+npm run release          # patch bump: 1.0.0 → 1.0.1
+npm run release minor    # minor bump: 1.0.0 → 1.1.0
+npm run release major    # major bump: 1.0.0 → 2.0.0
+```
+
+The script will ask for confirmation, then push the tag. GitHub Actions builds Windows, macOS, and Linux in parallel and publishes a release with auto-generated changelog.
 
 ## Keyboard Shortcuts
 
@@ -83,10 +100,10 @@ npm run dist:linux # build Linux AppImage
 
 ## Data & Privacy
 
-- Database: `%APPDATA%\mailshelf\mailshelf.db` (Windows)
+- Database: `%APPDATA%\mailshelf\mailshelf.db` (Windows) / `~/.config/mailshelf` (Linux) / `~/Library/Application Support/mailshelf` (macOS)
 - Passwords encrypted with AES-256-GCM before storing
 - Encryption key stored in OS keychain via Electron safeStorage
-- No network requests, no analytics, no auto-updates
+- Update check makes one HTTPS request to `api.github.com` on startup — no other network activity
 
 ## Tech Stack
 

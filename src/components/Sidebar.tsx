@@ -11,6 +11,7 @@ import {
   Download,
   Upload,
   Hash,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
@@ -31,6 +32,7 @@ export function Sidebar() {
     stats,
     filters,
     allTags,
+    accounts,
     setStatusFilter,
     setTagFilter,
     exportData,
@@ -39,6 +41,17 @@ export function Sidebar() {
   const { toast } = useToast()
 
   const activeTagFilters = filters.tags ?? []
+
+  // Count accounts per tag
+  const tagCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const account of accounts) {
+      for (const tag of account.tags) {
+        counts[tag] = (counts[tag] ?? 0) + 1
+      }
+    }
+    return counts
+  }, [accounts])
 
   const handleExport = async () => {
     const result = await exportData()
@@ -136,23 +149,41 @@ export function Sidebar() {
           <div className="flex flex-col gap-0.5">
             {allTags.map(tag => {
               const isActive = activeTagFilters.includes(tag)
+              const count = tagCounts[tag] ?? 0
               return (
                 <button
                   key={tag}
                   onClick={() => toggleTag(tag)}
                   className={cn(
-                    'flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-all duration-100 text-left w-full',
+                    'flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-all duration-100 text-left w-full group',
                     isActive
                       ? 'bg-shelf-accent/15 text-shelf-accent'
                       : 'text-shelf-text-muted hover:bg-shelf-elevated hover:text-shelf-text'
                   )}
                 >
                   <Hash size={12} className="shrink-0" />
-                  <span className="truncate">{tag}</span>
+                  <span className="truncate flex-1">{tag}</span>
+                  {count > 0 && (
+                    <span className={cn(
+                      'text-[10px] font-medium tabular-nums',
+                      isActive ? 'text-shelf-accent' : 'text-shelf-text-subtle'
+                    )}>
+                      {count}
+                    </span>
+                  )}
                 </button>
               )
             })}
           </div>
+          {activeTagFilters.length > 0 && (
+            <button
+              onClick={() => setTagFilter([])}
+              className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1 rounded-md text-xs text-shelf-text-subtle hover:text-shelf-text hover:bg-shelf-elevated transition-colors"
+            >
+              <X size={10} />
+              Clear tag filter
+            </button>
+          )}
         </div>
       )}
 

@@ -26,6 +26,8 @@ const api = {
       ipcRenderer.invoke('accounts:bulkDelete', ids),
     bulkUpdateStatus: (ids: string[], status: string) =>
       ipcRenderer.invoke('accounts:bulkUpdateStatus', ids, status),
+    bulkUpdateTag: (ids: string[], tag: string, mode: 'add' | 'remove') =>
+      ipcRenderer.invoke('accounts:bulkUpdateTag', ids, tag, mode),
     getStats: () =>
       ipcRenderer.invoke('accounts:getStats'),
     getTags: () =>
@@ -36,6 +38,13 @@ const api = {
   data: {
     export: () => ipcRenderer.invoke('data:export'),
     import: () => ipcRenderer.invoke('data:import'),
+  },
+
+  // App
+  app: {
+    checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
+    getVersion: () => ipcRenderer.invoke('app:getVersion'),
+    openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
   },
 }
 

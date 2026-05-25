@@ -10,6 +10,14 @@ let db: DatabaseService | null = null
 
 const isDev = process.env.NODE_ENV === 'development'
 
+// ─── App identity (must be set before app is ready) ─────────────────────────
+// Ensures Windows Task Manager, taskbar, and notifications show "MailShelf"
+// instead of the generic "Electron" process name.
+app.setName('MailShelf')
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.mailshelf.app')
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -30,9 +38,7 @@ function createWindow() {
       experimentalFeatures: false,
     },
     show: false,
-    icon: process.platform === 'win32'
-      ? path.join(__dirname, '../resources/icon.ico')
-      : path.join(__dirname, '../resources/icon.png'),
+    icon: path.join(__dirname, '../resources/icon.ico'),
   })
 
   mainWindow.once('ready-to-show', () => {
@@ -182,6 +188,13 @@ ipcMain.on('window:maximize', () => {
 })
 ipcMain.on('window:close', () => mainWindow?.close())
 ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false)
+ipcMain.handle('app:getVersion', () => app.getVersion())
+ipcMain.handle('app:openExternal', (_event, url: string) => {
+  // Only allow https GitHub URLs
+  if (typeof url === 'string' && url.startsWith('https://github.com/')) {
+    shell.openExternal(url)
+  }
+})
 
 // ─── Accounts IPC ───────────────────────────────────────────────────────────
 
@@ -251,6 +264,16 @@ ipcMain.handle('accounts:bulkUpdateStatus', (_event, ids: string[], status: stri
   return db.bulkUpdateStatus(safeIds, status)
 })
 
+ipcMain.handle('accounts:bulkUpdateTag', (_event, ids: string[], tag: string, mode: string) => {
+  if (!db) throw new Error('Database not initialized')
+  if (!Array.isArray(ids)) throw new Error('Invalid ids')
+  if (typeof tag !== 'string' || !tag.trim()) throw new Error('Invalid tag')
+  if (mode !== 'add' && mode !== 'remove') throw new Error('Invalid mode')
+  const safeTag = tag.trim().toLowerCase().slice(0, 100)
+  const safeIds = ids.filter(id => typeof id === 'string' && id.trim())
+  return db.bulkUpdateTag(safeIds, safeTag, mode)
+})
+
 ipcMain.handle('accounts:getStats', () => {
   if (!db) throw new Error('Database not initialized')
   return db.getStats()
@@ -260,6 +283,82 @@ ipcMain.handle('accounts:getTags', () => {
   if (!db) throw new Error('Database not initialized')
   return db.getAllTags()
 })
+
+// ─── Updates IPC ─────────────────────────────────────────────────────────────
+
+ipcMain.handle('app:checkForUpdates', async () => {
+  const currentVersion = app.getVersion() // from package.json "version"
+
+  try {
+    // Read repo from package.json at runtime
+    const pkgPath = path.join(__dirname, '../package.json')
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as {
+      repository?: { url?: string } | string
+    }
+
+    const repoUrl = typeof pkg.repository === 'string'
+      ? pkg.repository
+      : pkg.repository?.url ?? ''
+
+    // Extract "owner/repo" from various URL formats
+    const match = repoUrl.match(/github\.com[/:]([^/]+\/[^/.]+?)(?:\.git)?$/)
+    if (!match) return { hasUpdate: false, currentVersion, error: 'No GitHub repository configured' }
+
+    const ownerRepo = match[1]
+    const apiUrl = `https://api.github.com/repos/${ownerRepo}/releases/latest`
+
+    // Use Node's built-in https to avoid extra deps
+    const latestTag = await new Promise<string>((resolve, reject) => {
+      const https = require('https') as typeof import('https')
+      const req = https.get(
+        apiUrl,
+        { headers: { 'User-Agent': 'MailShelf-UpdateCheck', 'Accept': 'application/vnd.github+json' } },
+        (res) => {
+          let data = ''
+          res.on('data', chunk => { data += chunk })
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data) as { tag_name?: string; message?: string }
+              if (json.tag_name) resolve(json.tag_name)
+              else reject(new Error(json.message ?? 'No tag_name in response'))
+            } catch (e) {
+              reject(e)
+            }
+          })
+        }
+      )
+      req.on('error', reject)
+      req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')) })
+    })
+
+    // Normalise: strip leading "v"
+    const normalize = (v: string) => v.replace(/^v/, '')
+    const latest = normalize(latestTag)
+    const current = normalize(currentVersion)
+
+    const hasUpdate = latest !== current && compareVersions(latest, current) > 0
+
+    return {
+      hasUpdate,
+      currentVersion: `v${current}`,
+      latestVersion: `v${latest}`,
+      releaseUrl: `https://github.com/${ownerRepo}/releases/latest`,
+    }
+  } catch (err) {
+    return { hasUpdate: false, currentVersion: `v${currentVersion}`, error: String(err) }
+  }
+})
+
+/** Simple semver comparator — returns 1 if a > b, -1 if a < b, 0 if equal */
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(Number)
+  const pb = b.split('.').map(Number)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
+    if (diff !== 0) return diff > 0 ? 1 : -1
+  }
+  return 0
+}
 
 // ─── Import/Export IPC ──────────────────────────────────────────────────────
 

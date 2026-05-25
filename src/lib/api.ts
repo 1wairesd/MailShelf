@@ -18,12 +18,24 @@ declare global {
         delete: (id: string) => Promise<boolean>
         bulkDelete: (ids: string[]) => Promise<number>
         bulkUpdateStatus: (ids: string[], status: string) => Promise<number>
+        bulkUpdateTag: (ids: string[], tag: string, mode: 'add' | 'remove') => Promise<number>
         getStats: () => Promise<AccountStats>
         getTags: () => Promise<string[]>
       }
       data: {
         export: () => Promise<ImportExportResult>
         import: () => Promise<ImportExportResult>
+      }
+      app: {
+        checkForUpdates: () => Promise<{
+          hasUpdate: boolean
+          currentVersion: string
+          latestVersion?: string
+          releaseUrl?: string
+          error?: string
+        }>
+        getVersion: () => Promise<string>
+        openExternal: (url: string) => Promise<void>
       }
     }
   }
@@ -63,11 +75,17 @@ export const api = {
     delete: (id: string) => getApi().accounts.delete(id),
     bulkDelete: (ids: string[]) => getApi().accounts.bulkDelete(ids),
     bulkUpdateStatus: (ids: string[], status: string) => getApi().accounts.bulkUpdateStatus(ids, status),
+    bulkUpdateTag: (ids: string[], tag: string, mode: 'add' | 'remove') => getApi().accounts.bulkUpdateTag(ids, tag, mode),
     getStats: () => getApi().accounts.getStats(),
     getTags: () => getApi().accounts.getTags(),
   },
   data: {
     export: () => getApi().data.export(),
     import: () => getApi().data.import(),
+  },
+  app: {
+    checkForUpdates: () => getApi().app.checkForUpdates(),
+    getVersion: () => getApi().app.getVersion(),
+    openExternal: (url: string) => getApi().app.openExternal(url),
   },
 }
