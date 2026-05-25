@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   Copy, Check, Eye, EyeOff, Pencil, Trash2,
   Clock, Calendar, Mail,

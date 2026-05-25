@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import { useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useAccountStore } from '@/store/accountStore'
 import { AccountCard } from './AccountCard'

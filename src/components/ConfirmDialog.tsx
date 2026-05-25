@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { useAccountStore } from '@/store/accountStore'
 import { Button } from './ui/button'

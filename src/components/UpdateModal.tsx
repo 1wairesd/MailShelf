@@ -1,4 +1,3 @@
-import React from 'react'
 import { ArrowUpCircle, ExternalLink, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from './ui/dialog'
 import { Button } from './ui/button'

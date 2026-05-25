@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Plus, Keyboard, ArrowUpCircle } from 'lucide-react'
 import { useAccountStore } from '@/store/accountStore'
 import { Button } from './ui/button'

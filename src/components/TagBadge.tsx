@@ -1,4 +1,3 @@
-import React from 'react'
 import { cn, generateTagColor } from '@/lib/utils'
 import { X } from 'lucide-react'
 

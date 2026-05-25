@@ -6,7 +6,6 @@ import {
   Clock,
   Skull,
   Archive,
-  Tag,
   BarChart2,
   Download,
   Upload,

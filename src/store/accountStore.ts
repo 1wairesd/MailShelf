@@ -102,7 +102,7 @@ const defaultFilters: AccountFilters = {
 }
 
 // Debounced version of loadAccounts for search — prevents firing on every keystroke
-const debouncedLoadAccounts = debounce((fn: () => void) => fn(), 150)
+const debouncedSearch = debounce((fn: () => void) => fn(), 150) as (fn: () => void) => void
 
 export const useAccountStore = create<AccountStore>()(
   subscribeWithSelector((set, get) => ({
@@ -261,7 +261,7 @@ export const useAccountStore = create<AccountStore>()(
 
     setSearch: (query) => {
       set(state => ({ filters: { ...state.filters, search: query }, searchQuery: query }))
-      debouncedLoadAccounts(() => get().loadAccounts())
+      debouncedSearch(() => get().loadAccounts())
     },
 
     setStatusFilter: (status) => {

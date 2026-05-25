@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Trash2, X, CheckSquare, Tag, Plus, Minus, ChevronDown } from 'lucide-react'
 import { useAccountStore } from '@/store/accountStore'
