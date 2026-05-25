@@ -42,7 +42,7 @@ export function Sidebar() {
 
   const activeTagFilters = filters.tags ?? []
 
-  // Count accounts per tag
+  // Count accounts per tag — memoized to avoid recalculating on every render
   const tagCounts = React.useMemo(() => {
     const counts: Record<string, number> = {}
     for (const account of accounts) {

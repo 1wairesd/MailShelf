@@ -24,7 +24,7 @@ const STATUS_ITEMS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
   dotColor: cfg.dotColor,
 }))
 
-export function AccountCard({ account, isSelected, isActive, onSelect, onClick }: AccountCardProps) {
+export const AccountCard = React.memo(function AccountCard({ account, isSelected, isActive, onSelect, onClick }: AccountCardProps) {
   const { openEditForm, deleteAccount, duplicateAccount, updateAccount, showConfirm, allTags } = useAccountStore()
   const { toast } = useToast()
   const [copiedEmail, setCopiedEmail] = useState(false)
@@ -267,4 +267,4 @@ export function AccountCard({ account, isSelected, isActive, onSelect, onClick }
       </div>
     </div>
   )
-}
+})

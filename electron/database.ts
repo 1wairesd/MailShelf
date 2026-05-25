@@ -116,15 +116,48 @@ export class DatabaseService {
     let rows: AccountRow[]
 
     if (search && search.trim()) {
-      const ftsQuery = search.trim().split(/\s+/).map(t => `"${t.replace(/"/g, '')}"`).join(' OR ')
+      // Build FTS5 query with prefix matching (* suffix) so partial input works.
+      // Each token becomes  "token"*  which matches any word starting with that token.
+      // Special chars that break FTS5 syntax are stripped.
+      const tokens = search.trim().split(/\s+/).filter(Boolean)
+      const ftsQuery = tokens
+        .map(t => `"${t.replace(/["*^()]/g, '')}"*`)
+        .join(' OR ')
+
       const whereClause = conditions.length ? 'AND ' + conditions.join(' AND ') : ''
-      const stmt = this.db.prepare(`
-        SELECT a.* FROM accounts a
-        INNER JOIN accounts_fts fts ON a.id = fts.id
-        WHERE accounts_fts MATCH ? ${whereClause}
-        ORDER BY a.${safeSortBy} ${safeSortOrder}
-      `)
-      rows = stmt.all(ftsQuery, ...params) as AccountRow[]
+
+      let rows_: AccountRow[] = []
+
+      try {
+        const stmt = this.db.prepare(`
+          SELECT a.* FROM accounts a
+          INNER JOIN accounts_fts fts ON a.id = fts.id
+          WHERE accounts_fts MATCH ? ${whereClause}
+          ORDER BY a.${safeSortBy} ${safeSortOrder}
+        `)
+        rows_ = stmt.all(ftsQuery, ...params) as AccountRow[]
+      } catch {
+        // FTS query failed (e.g. special chars) — fall through to LIKE
+        rows_ = []
+      }
+
+      // If FTS returned nothing, fall back to LIKE so mid-word search works too
+      // (e.g. searching "mail" finds "gmail.com")
+      if (rows_.length === 0) {
+        const likePattern = `%${search.trim().replace(/[%_]/g, '\\$&')}%`
+        const likeConditions = [
+          ...conditions,
+          `(a.email LIKE ? ESCAPE '\\' OR a.notes LIKE ? ESCAPE '\\' OR a.tags LIKE ? ESCAPE '\\')`,
+        ]
+        const likeStmt = this.db.prepare(`
+          SELECT * FROM accounts a
+          WHERE ${likeConditions.join(' AND ')}
+          ORDER BY ${safeSortBy} ${safeSortOrder}
+        `)
+        rows_ = likeStmt.all(...params, likePattern, likePattern, likePattern) as AccountRow[]
+      }
+
+      rows = rows_
     } else {
       const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''
       const stmt = this.db.prepare(`

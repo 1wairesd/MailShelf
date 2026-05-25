@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Trash2, X, CheckSquare, Tag, Plus, Minus, ChevronDown } from 'lucide-react'
 import { useAccountStore } from '@/store/accountStore'
@@ -52,17 +52,17 @@ export function BulkActionBar() {
     toast(`Removed tag "${tag}" from ${ids.length} account${ids.length !== 1 ? 's' : ''}`, 'info')
   }
 
-  // Compute tag state across selected accounts:
-  // - "all"  → every selected account has this tag
-  // - "some" → some (but not all) selected accounts have this tag
-  // - "none" → no selected account has this tag
-  const selectedAccounts = accounts.filter(a => selectedIds.has(a.id))
-  const tagState = (tag: string): 'all' | 'some' | 'none' => {
+  // Compute tag state across selected accounts — memoized
+  const selectedAccounts = React.useMemo(
+    () => accounts.filter(a => selectedIds.has(a.id)),
+    [accounts, selectedIds]
+  )
+  const tagState = React.useCallback((tag: string): 'all' | 'some' | 'none' => {
     const withTag = selectedAccounts.filter(a => a.tags.includes(tag)).length
     if (withTag === 0) return 'none'
     if (withTag === selectedAccounts.length) return 'all'
     return 'some'
-  }
+  }, [selectedAccounts])
 
   return (
     <div className={cn(

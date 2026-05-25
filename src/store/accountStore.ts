@@ -11,6 +11,7 @@ import {
   UpdateAccountInput,
 } from '../types'
 import { api } from '../lib/api'
+import { debounce } from '../lib/utils'
 
 interface AccountStore {
   // Data
@@ -66,7 +67,7 @@ interface AccountStore {
   openEditForm: (account: Account) => void
   closeForm: () => void
 
-  // Confirm delete
+  // Confirm delete (legacy — kept for compatibility, use showConfirm instead)
   confirmDeleteId: string | null
   setConfirmDeleteId: (id: string | null) => void
 
@@ -99,6 +100,9 @@ const defaultFilters: AccountFilters = {
   sortBy: 'created_at',
   sortOrder: 'desc',
 }
+
+// Debounced version of loadAccounts for search — prevents firing on every keystroke
+const debouncedLoadAccounts = debounce((fn: () => void) => fn(), 150)
 
 export const useAccountStore = create<AccountStore>()(
   subscribeWithSelector((set, get) => ({
@@ -257,7 +261,7 @@ export const useAccountStore = create<AccountStore>()(
 
     setSearch: (query) => {
       set(state => ({ filters: { ...state.filters, search: query }, searchQuery: query }))
-      get().loadAccounts()
+      debouncedLoadAccounts(() => get().loadAccounts())
     },
 
     setStatusFilter: (status) => {

@@ -59,12 +59,26 @@ export function useKeyboardShortcuts(onShowShortcuts: () => void) {
       if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
         if (store.selectedIds.size > 0) {
           e.preventDefault()
-          store.bulkDelete(Array.from(store.selectedIds))
+          const ids = Array.from(store.selectedIds)
+          store.showConfirm({
+            title: `Delete ${ids.length} account${ids.length !== 1 ? 's' : ''}?`,
+            description: `This will permanently delete ${ids.length} selected account${ids.length !== 1 ? 's' : ''}. This action cannot be undone.`,
+            confirmLabel: `Delete ${ids.length}`,
+            onConfirm: () => store.bulkDelete(ids),
+          })
           return
         }
         if (store.activeAccountId) {
           e.preventDefault()
-          store.deleteAccount(store.activeAccountId)
+          const account = store.accounts.find(a => a.id === store.activeAccountId)
+          if (account) {
+            store.showConfirm({
+              title: 'Delete account?',
+              description: `This will permanently delete ${account.email}. This action cannot be undone.`,
+              confirmLabel: 'Delete',
+              onConfirm: () => store.deleteAccount(store.activeAccountId!),
+            })
+          }
           return
         }
       }
