@@ -25,7 +25,7 @@ export function registerAppIpc() {
   ipcMain.handle('app:checkForUpdates', async () => {
     const currentVersion = app.getVersion()
     try {
-      const pkgPath = path.join(__dirname, '../package.json')
+      const pkgPath = path.join(__dirname, '../../../package.json')
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as {
         repository?: { url?: string } | string
       }

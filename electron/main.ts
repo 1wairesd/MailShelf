@@ -39,7 +39,7 @@ function createWindow() {
       experimentalFeatures: false,
     },
     show: false,
-    icon: path.join(__dirname, '../resources/icon.ico'),
+    icon: path.join(__dirname, '../../resources/icon.ico'),
   })
 
   mainWindow.once('ready-to-show', () => mainWindow?.show())
@@ -48,7 +48,7 @@ function createWindow() {
   mainWindow.webContents.on('will-navigate', (event, url) => {
     const appUrl = isDev
       ? 'http://localhost:5173'
-      : `file://${path.join(__dirname, '../dist/index.html')}`
+      : `file://${path.join(__dirname, '../../dist/index.html')}`
     if (!url.startsWith(appUrl)) {
       event.preventDefault()
       console.warn('[Security] Blocked navigation to:', url)
@@ -62,7 +62,7 @@ function createWindow() {
       mainWindow?.loadURL(
         isDev
           ? 'http://localhost:5173'
-          : `file://${path.join(__dirname, '../dist/index.html')}`
+          : `file://${path.join(__dirname, '../../dist/index.html')}`
       )
     }
   })
@@ -84,7 +84,7 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
     mainWindow.setMenu(null)
   }
 

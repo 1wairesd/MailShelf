@@ -4,16 +4,12 @@
     "module": "CommonJS",
     "lib": ["ES2020"],
     "outDir": "dist-electron",
+    "rootDirs": ["electron", "shared"],
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "moduleResolution": "node",
-    "baseUrl": ".",
-    "paths": {
-      "@electron/*": ["electron/*"],
-      "@shared/*": ["shared/*"]
-    }
+    "moduleResolution": "node"
   },
   "include": ["electron", "shared"]
 }
