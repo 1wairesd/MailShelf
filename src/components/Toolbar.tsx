@@ -14,9 +14,9 @@ interface ToolbarProps {
 export function Toolbar({ onShowShortcuts }: ToolbarProps) {
   const { openCreateForm, accounts } = useAccountStore()
   const [updateOpen, setUpdateOpen] = useState(false)
-  const { status, info, check } = useUpdateCheck()
+  const { status, info, check, install } = useUpdateCheck()
 
-  const hasUpdate = status === 'done' && info?.hasUpdate
+  const hasUpdate = status === 'downloaded' || status === 'available' || status === 'downloading'
 
   return (
     <>
@@ -29,7 +29,12 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
         {/* Right: actions */}
         <div className="flex items-center gap-1.5">
           {/* Update indicator */}
-          <Tooltip content={hasUpdate ? `Update available: ${info?.latestVersion}` : 'Check for updates'}>
+          <Tooltip content={
+            status === 'downloaded' ? `v${info.version} ready — click to install` :
+            status === 'downloading' ? `Downloading update… ${info.percent ?? 0}%` :
+            status === 'available' ? `Update available: v${info.version}` :
+            'Check for updates'
+          }>
             <button
               onClick={() => setUpdateOpen(true)}
               className={cn(
@@ -40,7 +45,6 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
               )}
             >
               <ArrowUpCircle size={14} />
-              {/* Dot badge when update available */}
               {hasUpdate && (
                 <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-shelf-accent" />
               )}
@@ -71,6 +75,7 @@ export function Toolbar({ onShowShortcuts }: ToolbarProps) {
         status={status}
         info={info}
         onCheck={check}
+        onInstall={install}
       />
     </>
   )

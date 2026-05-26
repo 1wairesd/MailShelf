@@ -1,104 +1,108 @@
-import { ArrowUpCircle, ExternalLink, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
+import { ArrowUpCircle, RefreshCw, CheckCircle, AlertCircle, Download, RotateCcw } from 'lucide-react'
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from './ui/dialog'
 import { Button } from './ui/button'
-import { api } from '@/lib/api'
-import { UpdateInfo, UpdateStatus } from '@/hooks/useUpdateCheck'
+import { UpdateStatus, UpdateInfo } from '@/hooks/useUpdateCheck'
 import { cn } from '@/lib/utils'
 
 interface UpdateModalProps {
   open: boolean
   onClose: () => void
   status: UpdateStatus
-  info: UpdateInfo | null
+  info: UpdateInfo
   onCheck: () => void
+  onInstall: () => void
 }
 
-export function UpdateModal({ open, onClose, status, info, onCheck }: UpdateModalProps) {
-  const handleOpenRelease = () => {
-    if (info?.releaseUrl) {
-      api.app.openExternal(info.releaseUrl)
-    }
-  }
-
+export function UpdateModal({ open, onClose, status, info, onCheck, onInstall }: UpdateModalProps) {
   return (
     <Dialog open={open} onClose={onClose} className="max-w-sm">
-      <DialogHeader
-        title="Check for Updates"
-        onClose={onClose}
-      />
+      <DialogHeader title="Updates" onClose={onClose} />
 
       <DialogBody>
         <div className="flex flex-col items-center text-center gap-4 py-2">
           {/* Icon */}
           <div className={cn(
             'w-14 h-14 rounded-2xl flex items-center justify-center',
-            status === 'checking' && 'bg-shelf-elevated',
-            status === 'done' && info?.hasUpdate && 'bg-shelf-accent/15',
-            status === 'done' && !info?.hasUpdate && 'bg-green-500/10',
-            status === 'error' && 'bg-red-500/10',
-            status === 'idle' && 'bg-shelf-elevated',
+            status === 'idle' || status === 'checking'  ? 'bg-shelf-elevated' : '',
+            status === 'available' || status === 'downloading' ? 'bg-shelf-accent/15' : '',
+            status === 'downloaded' ? 'bg-shelf-accent/20' : '',
+            status === 'up-to-date' ? 'bg-green-500/10' : '',
+            status === 'error' ? 'bg-red-500/10' : '',
           )}>
-            {status === 'checking' && (
-              <RefreshCw size={24} className="text-shelf-text-muted animate-spin" />
+            {(status === 'idle' || status === 'checking') && (
+              <RefreshCw size={24} className={cn('text-shelf-text-muted', status === 'checking' && 'animate-spin')} />
             )}
-            {status === 'done' && info?.hasUpdate && (
+            {(status === 'available' || status === 'downloading') && (
+              <Download size={24} className="text-shelf-accent" />
+            )}
+            {status === 'downloaded' && (
               <ArrowUpCircle size={24} className="text-shelf-accent" />
             )}
-            {status === 'done' && !info?.hasUpdate && (
+            {status === 'up-to-date' && (
               <CheckCircle size={24} className="text-green-400" />
             )}
             {status === 'error' && (
               <AlertCircle size={24} className="text-red-400" />
             )}
-            {status === 'idle' && (
-              <RefreshCw size={24} className="text-shelf-text-muted" />
-            )}
           </div>
 
           {/* Message */}
-          {status === 'checking' && (
-            <div>
-              <p className="text-sm font-medium text-shelf-text">Checking for updates…</p>
-              <p className="text-xs text-shelf-text-muted mt-1">Connecting to GitHub</p>
-            </div>
-          )}
-
-          {status === 'done' && info?.hasUpdate && (
-            <div>
-              <p className="text-sm font-medium text-shelf-text">Update available</p>
-              <p className="text-xs text-shelf-text-muted mt-1">
-                <span className="text-shelf-text-subtle">{info.currentVersion}</span>
-                {' → '}
-                <span className="text-shelf-accent font-medium">{info.latestVersion}</span>
-              </p>
-            </div>
-          )}
-
-          {status === 'done' && !info?.hasUpdate && (
-            <div>
-              <p className="text-sm font-medium text-shelf-text">You're up to date</p>
-              <p className="text-xs text-shelf-text-muted mt-1">
-                {info?.currentVersion} is the latest version
-              </p>
-            </div>
-          )}
-
-          {status === 'error' && (
-            <div>
-              <p className="text-sm font-medium text-shelf-text">Couldn't check for updates</p>
-              <p className="text-xs text-shelf-text-muted mt-1 max-w-[220px]">
-                {info?.error?.includes('Timeout')
-                  ? 'Connection timed out. Check your internet connection.'
-                  : 'No GitHub repository configured or network error.'}
-              </p>
-            </div>
-          )}
-
           {status === 'idle' && (
             <div>
               <p className="text-sm font-medium text-shelf-text">Check for updates</p>
+              <p className="text-xs text-shelf-text-muted mt-1">Click below to check for a new version</p>
+            </div>
+          )}
+          {status === 'checking' && (
+            <div>
+              <p className="text-sm font-medium text-shelf-text">Checking…</p>
+              <p className="text-xs text-shelf-text-muted mt-1">Connecting to update server</p>
+            </div>
+          )}
+          {status === 'available' && (
+            <div>
+              <p className="text-sm font-medium text-shelf-text">
+                Update available — v{info.version}
+              </p>
+              <p className="text-xs text-shelf-text-muted mt-1">Downloading in the background…</p>
+            </div>
+          )}
+          {status === 'downloading' && (
+            <div className="w-full">
+              <p className="text-sm font-medium text-shelf-text mb-2">
+                Downloading v{info.version}…
+              </p>
+              {/* Progress bar */}
+              <div className="w-full h-1.5 bg-shelf-elevated rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-shelf-accent rounded-full transition-all duration-300"
+                  style={{ width: `${info.percent ?? 0}%` }}
+                />
+              </div>
+              <p className="text-xs text-shelf-text-subtle mt-1.5">{info.percent ?? 0}%</p>
+            </div>
+          )}
+          {status === 'downloaded' && (
+            <div>
+              <p className="text-sm font-medium text-shelf-text">
+                v{info.version} ready to install
+              </p>
               <p className="text-xs text-shelf-text-muted mt-1">
-                Current version: {info?.currentVersion ?? '…'}
+                Restart the app to apply the update
+              </p>
+            </div>
+          )}
+          {status === 'up-to-date' && (
+            <div>
+              <p className="text-sm font-medium text-shelf-text">You're up to date</p>
+              <p className="text-xs text-shelf-text-muted mt-1">No updates available right now</p>
+            </div>
+          )}
+          {status === 'error' && (
+            <div>
+              <p className="text-sm font-medium text-shelf-text">Update check failed</p>
+              <p className="text-xs text-shelf-text-muted mt-1 max-w-[220px] break-words">
+                {info.error ?? 'Unknown error'}
               </p>
             </div>
           )}
@@ -110,17 +114,17 @@ export function UpdateModal({ open, onClose, status, info, onCheck }: UpdateModa
           Close
         </Button>
 
-        {status === 'done' && info?.hasUpdate ? (
-          <Button size="sm" onClick={handleOpenRelease} className="gap-1.5">
-            <ExternalLink size={13} />
-            Download {info.latestVersion}
+        {status === 'downloaded' ? (
+          <Button size="sm" onClick={onInstall} className="gap-1.5">
+            <RotateCcw size={13} />
+            Restart & Install
           </Button>
         ) : (
           <Button
             variant="outline"
             size="sm"
             onClick={onCheck}
-            disabled={status === 'checking'}
+            disabled={status === 'checking' || status === 'downloading' || status === 'available'}
             className="gap-1.5"
           >
             <RefreshCw size={13} className={cn(status === 'checking' && 'animate-spin')} />

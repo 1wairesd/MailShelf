@@ -1,37 +1,58 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 
+export type UpdateStatus =
+  | 'idle'
+  | 'checking'
+  | 'available'       // update found, downloading
+  | 'downloading'     // download in progress
+  | 'downloaded'      // ready to install
+  | 'up-to-date'
+  | 'error'
+
 export interface UpdateInfo {
-  hasUpdate: boolean
-  currentVersion: string
-  latestVersion?: string
-  releaseUrl?: string
+  version?: string
+  percent?: number
   error?: string
 }
 
-export type UpdateStatus = 'idle' | 'checking' | 'done' | 'error'
-
 export function useUpdateCheck() {
   const [status, setStatus] = useState<UpdateStatus>('idle')
-  const [info, setInfo] = useState<UpdateInfo | null>(null)
+  const [info, setInfo] = useState<UpdateInfo>({})
 
-  const check = useCallback(async () => {
+  const check = useCallback(() => {
     setStatus('checking')
-    try {
-      const result = await api.app.checkForUpdates()
-      setInfo(result)
-      setStatus(result.error ? 'error' : 'done')
-    } catch (err) {
-      setInfo({ hasUpdate: false, currentVersion: '', error: String(err) })
-      setStatus('error')
-    }
+    api.updater.check().catch(() => {})
   }, [])
 
-  // Auto-check once on mount, after a short delay so it doesn't block startup
   useEffect(() => {
-    const timer = setTimeout(check, 3000)
-    return () => clearTimeout(timer)
-  }, [check])
+    const unsubs = [
+      api.updater.onUpdateAvailable(({ version }) => {
+        setStatus('available')
+        setInfo({ version })
+      }),
+      api.updater.onUpdateNotAvailable(() => {
+        setStatus('up-to-date')
+      }),
+      api.updater.onDownloadProgress(({ percent }) => {
+        setStatus('downloading')
+        setInfo(prev => ({ ...prev, percent }))
+      }),
+      api.updater.onUpdateDownloaded(({ version }) => {
+        setStatus('downloaded')
+        setInfo({ version })
+      }),
+      api.updater.onError(({ message }) => {
+        setStatus('error')
+        setInfo({ error: message })
+      }),
+    ]
+    return () => unsubs.forEach(u => u())
+  }, [])
 
-  return { status, info, check }
+  const install = useCallback(() => {
+    api.updater.install()
+  }, [])
+
+  return { status, info, check, install }
 }

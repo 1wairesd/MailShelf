@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import path from 'path'
 import { DatabaseService } from './database'
 import { initCrypto, clearCrypto } from './crypto'
@@ -13,7 +14,60 @@ let db: DatabaseService | null = null
 
 const isDev = process.env.NODE_ENV === 'development'
 
-// ─── App identity ────────────────────────────────────────────────────────────
+// ─── Auto-updater ─────────────────────────────────────────────────────────────
+
+function initAutoUpdater() {
+  if (isDev) return  // don't check for updates in dev mode
+
+  autoUpdater.autoDownload = true        // download in background automatically
+  autoUpdater.autoInstallOnAppQuit = true // install when user quits
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('[Updater] Update available:', info.version)
+    mainWindow?.webContents.send('updater:update-available', {
+      version: info.version,
+      releaseNotes: info.releaseNotes,
+    })
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('[Updater] App is up to date')
+    mainWindow?.webContents.send('updater:update-not-available')
+  })
+
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('updater:download-progress', {
+      percent: Math.round(progress.percent),
+      transferred: progress.transferred,
+      total: progress.total,
+      bytesPerSecond: progress.bytesPerSecond,
+    })
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[Updater] Update downloaded:', info.version)
+    mainWindow?.webContents.send('updater:update-downloaded', {
+      version: info.version,
+    })
+  })
+
+  autoUpdater.on('error', (err) => {
+    console.error('[Updater] Error:', err.message)
+    mainWindow?.webContents.send('updater:error', { message: err.message })
+  })
+
+  // Check on startup, then every 4 hours
+  autoUpdater.checkForUpdates().catch(err =>
+    console.error('[Updater] checkForUpdates failed:', err)
+  )
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch(err =>
+      console.error('[Updater] periodic check failed:', err)
+    )
+  }, 4 * 60 * 60 * 1000)
+}
+
+
 app.setName('MailShelf')
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.mailshelf.app')
@@ -131,6 +185,14 @@ function registerIpc() {
   registerDataIpc(() => db, () => mainWindow)
   registerAppIpc()
   registerTagRulesIpc(() => db)
+
+  // Updater controls
+  ipcMain.handle('updater:check', () =>
+    autoUpdater.checkForUpdates().catch(e => ({ error: String(e) }))
+  )
+  ipcMain.on('updater:install', () => {
+    autoUpdater.quitAndInstall(false, true)
+  })
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -140,6 +202,7 @@ app.whenReady().then(() => {
   registerIpc()
   createWindow()
   startScheduler(() => db, () => mainWindow)
+  initAutoUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

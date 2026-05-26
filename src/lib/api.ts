@@ -46,6 +46,15 @@ declare global {
         getVersion: () => Promise<string>
         openExternal: (url: string) => Promise<void>
       }
+      updater: {
+        check: () => Promise<unknown>
+        install: () => void
+        onUpdateAvailable: (cb: (info: { version: string; releaseNotes?: string }) => void) => () => void
+        onUpdateNotAvailable: (cb: () => void) => () => void
+        onDownloadProgress: (cb: (p: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => void) => () => void
+        onUpdateDownloaded: (cb: (info: { version: string }) => void) => () => void
+        onError: (cb: (err: { message: string }) => void) => () => void
+      }
     }
   }
 }
@@ -105,5 +114,14 @@ export const api = {
     checkForUpdates: () => getApi().app.checkForUpdates(),
     getVersion: () => getApi().app.getVersion(),
     openExternal: (url: string) => getApi().app.openExternal(url),
+  },
+  updater: {
+    check: () => getApi().updater.check(),
+    install: () => getApi().updater.install(),
+    onUpdateAvailable: (cb: Parameters<Window['api']['updater']['onUpdateAvailable']>[0]) => getApi().updater.onUpdateAvailable(cb),
+    onUpdateNotAvailable: (cb: Parameters<Window['api']['updater']['onUpdateNotAvailable']>[0]) => getApi().updater.onUpdateNotAvailable(cb),
+    onDownloadProgress: (cb: Parameters<Window['api']['updater']['onDownloadProgress']>[0]) => getApi().updater.onDownloadProgress(cb),
+    onUpdateDownloaded: (cb: Parameters<Window['api']['updater']['onUpdateDownloaded']>[0]) => getApi().updater.onUpdateDownloaded(cb),
+    onError: (cb: Parameters<Window['api']['updater']['onError']>[0]) => getApi().updater.onError(cb),
   },
 }

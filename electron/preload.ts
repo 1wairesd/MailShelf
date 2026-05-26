@@ -65,6 +65,37 @@ const api = {
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
     openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
   },
+
+  // Auto-updater
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    install: () => ipcRenderer.send('updater:install'),
+    onUpdateAvailable: (cb: (info: { version: string; releaseNotes?: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, info: Parameters<typeof cb>[0]) => cb(info)
+      ipcRenderer.on('updater:update-available', handler)
+      return () => ipcRenderer.removeListener('updater:update-available', handler)
+    },
+    onUpdateNotAvailable: (cb: () => void) => {
+      const handler = () => cb()
+      ipcRenderer.on('updater:update-not-available', handler)
+      return () => ipcRenderer.removeListener('updater:update-not-available', handler)
+    },
+    onDownloadProgress: (cb: (p: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, p: Parameters<typeof cb>[0]) => cb(p)
+      ipcRenderer.on('updater:download-progress', handler)
+      return () => ipcRenderer.removeListener('updater:download-progress', handler)
+    },
+    onUpdateDownloaded: (cb: (info: { version: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, info: Parameters<typeof cb>[0]) => cb(info)
+      ipcRenderer.on('updater:update-downloaded', handler)
+      return () => ipcRenderer.removeListener('updater:update-downloaded', handler)
+    },
+    onError: (cb: (err: { message: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, err: Parameters<typeof cb>[0]) => cb(err)
+      ipcRenderer.on('updater:error', handler)
+      return () => ipcRenderer.removeListener('updater:error', handler)
+    },
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)
