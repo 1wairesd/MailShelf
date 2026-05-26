@@ -38,19 +38,24 @@ export function Dropdown({ trigger, items, align = 'right', className }: Dropdow
     setOpen(true)
   }
 
-  // Close on outside click
+  // Close on outside click — use pointerdown so we catch it before React's
+  // synthetic onClick fires on parent elements (avoids the race where closing
+  // the dropdown swallows the card click).
   React.useEffect(() => {
     if (!open) return
-    const handler = (e: MouseEvent) => {
+    const handler = (e: PointerEvent) => {
       if (triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
         setOpen(false)
       }
     }
-    // Use timeout so the current click doesn't immediately close
-    const id = setTimeout(() => document.addEventListener('mousedown', handler), 0)
+    // rAF so the pointerdown that opened the menu doesn't immediately close it
+    let rafId: number
+    rafId = requestAnimationFrame(() => {
+      document.addEventListener('pointerdown', handler)
+    })
     return () => {
-      clearTimeout(id)
-      document.removeEventListener('mousedown', handler)
+      cancelAnimationFrame(rafId)
+      document.removeEventListener('pointerdown', handler)
     }
   }, [open])
 

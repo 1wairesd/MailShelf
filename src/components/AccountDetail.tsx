@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   Copy, Check, Eye, EyeOff, Pencil, Trash2,
   Clock, Calendar, Mail,
@@ -26,7 +26,13 @@ export function AccountDetail() {
   const [copiedPass, setCopiedPass] = useState(false)
   const [showPass, setShowPass] = useState(false)
 
-  const account = accounts.find(a => a.id === activeAccountId)
+  // Keep a stable reference to the last found account so the panel doesn't
+  // flash/disappear during brief moments when accounts[] is being reloaded
+  // (e.g. right after an update triggers loadAccounts).
+  const lastAccountRef = useRef<ReturnType<typeof accounts.find>>(undefined)
+  const found = accounts.find(a => a.id === activeAccountId)
+  if (found) lastAccountRef.current = found
+  const account = found ?? lastAccountRef.current
   if (!account) return null
 
   const handleCopyEmail = async () => {

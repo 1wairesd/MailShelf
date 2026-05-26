@@ -83,13 +83,13 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
   // Close tag input when clicking outside the card's tag area
   useEffect(() => {
     if (!addingTag) return
-    const handler = (e: MouseEvent) => {
+    const handler = (e: PointerEvent) => {
       if (tagInputRef.current && !tagInputRef.current.contains(e.target as Node)) {
         setAddingTag(false)
       }
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
   }, [addingTag])
 
   const maskedPassword = account.password
@@ -100,10 +100,11 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
     <div
       onClick={onClick}
       className={cn(
-        'group relative flex flex-col gap-2 px-4 py-3 border-b border-shelf-border-subtle cursor-pointer transition-all duration-100',
+        'group relative flex flex-col gap-2 px-4 py-3 border-b border-shelf-border-subtle cursor-pointer transition-colors duration-100',
+        'border-l-2',
         isActive
-          ? 'bg-shelf-accent/8 border-l-2 border-l-shelf-accent'
-          : 'hover:bg-shelf-elevated/50',
+          ? 'bg-shelf-accent/8 border-l-shelf-accent'
+          : 'border-l-transparent hover:bg-shelf-elevated/50',
         isSelected && !isActive && 'bg-shelf-elevated/30'
       )}
     >
@@ -221,14 +222,13 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
       <div
         ref={tagInputRef}
         className="flex flex-wrap gap-1 pl-7 items-center"
-        onClick={e => e.stopPropagation()}
       >
         {account.tags.map(tag => (
           <TagBadge key={tag} tag={tag} size="sm" />
         ))}
 
         {addingTag ? (
-          <div className="flex-1 min-w-[140px]">
+          <div className="flex-1 min-w-[140px]" onClick={e => e.stopPropagation()}>
             <TagInput
               tags={account.tags}
               allTags={allTags}
