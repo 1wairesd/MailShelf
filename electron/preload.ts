@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { AccountFilters, CreateAccountInput, UpdateAccountInput } from './types'
+import { AccountFilters, CreateAccountInput, UpdateAccountInput, CreateTagRuleInput, UpdateTagRuleInput } from './types'
 
 const api = {
   // Window controls
@@ -32,6 +32,25 @@ const api = {
       ipcRenderer.invoke('accounts:getStats'),
     getTags: () =>
       ipcRenderer.invoke('accounts:getTags'),
+  },
+
+  // Tag Rules
+  tagRules: {
+    getAll: () =>
+      ipcRenderer.invoke('tagRules:getAll'),
+    create: (input: CreateTagRuleInput) =>
+      ipcRenderer.invoke('tagRules:create', input),
+    update: (id: string, input: UpdateTagRuleInput) =>
+      ipcRenderer.invoke('tagRules:update', id, input),
+    delete: (id: string) =>
+      ipcRenderer.invoke('tagRules:delete', id),
+    run: () =>
+      ipcRenderer.invoke('tagRules:run'),
+    onApplied: (cb: (data: { results: { ruleId: string; affected: number }[]; totalAffected: number }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: Parameters<typeof cb>[0]) => cb(data)
+      ipcRenderer.on('tagRules:applied', handler)
+      return () => ipcRenderer.removeListener('tagRules:applied', handler)
+    },
   },
 
   // Import/Export

@@ -29,6 +29,7 @@ Everything stays on your machine. No cloud, no sync, no telemetry.
 - **Smart tags** — autocomplete from existing tags, create new ones inline, filter by tag in sidebar
 - **Inline tag editing** — add or remove tags directly from the account card or detail panel without opening the form
 - **Bulk tag management** — select multiple accounts and add/remove tags across all of them at once
+- **Tag Rules** — automatically change account status on a schedule based on tags (after N days, on a specific day of the month, or on a specific weekday); catch-up logic fires missed rules immediately on next startup
 - **One-click copy** — copy email or password instantly
 - **Quick status change** — click the status badge on any card to change it
 - **Bulk actions** — select multiple accounts, change status, manage tags, or delete with confirmation
@@ -38,6 +39,20 @@ Everything stays on your machine. No cloud, no sync, no telemetry.
 - **Encrypted storage** — passwords encrypted with AES-256-GCM, key protected by OS keychain (DPAPI / Keychain / libsecret)
 - **Virtualized list** — handles thousands of accounts without lag
 - **Update checker** — checks GitHub Releases on startup and notifies when a new version is available
+
+## Tag Rules
+
+Tag Rules let you automate status transitions based on a tag and a schedule. For example: accounts tagged `waiting-reset` with status **Waiting Reset** automatically switch to **Active** on the 1st of every month.
+
+**Trigger types:**
+
+| Type | Description |
+|------|-------------|
+| After N days | Fires when the account's status hasn't changed for N days |
+| Day of month | Fires on a specific day of each month (1–28) |
+| Day of week | Fires on a specific weekday each week |
+
+Rules are evaluated on every app startup and then once per hour. If the app was offline and missed scheduled firings, the rule fires immediately on the next launch (catch-up logic).
 
 ## Screenshots
 

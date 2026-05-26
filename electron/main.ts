@@ -5,6 +5,8 @@ import { initCrypto, clearCrypto } from './crypto'
 import { registerAccountsIpc } from './ipc/accounts'
 import { registerDataIpc } from './ipc/data'
 import { registerAppIpc } from './ipc/app'
+import { registerTagRulesIpc } from './ipc/tagRules'
+import { startScheduler, stopScheduler } from './scheduler'
 
 let mainWindow: BrowserWindow | null = null
 let db: DatabaseService | null = null
@@ -128,6 +130,7 @@ function registerIpc() {
   registerAccountsIpc(() => db)
   registerDataIpc(() => db, () => mainWindow)
   registerAppIpc()
+  registerTagRulesIpc(() => db)
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -136,6 +139,7 @@ app.whenReady().then(() => {
   initDatabase()
   registerIpc()
   createWindow()
+  startScheduler(() => db, () => mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -150,6 +154,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  stopScheduler()
   db?.close()
   clearCrypto()
 })

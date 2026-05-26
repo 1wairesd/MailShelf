@@ -1,4 +1,5 @@
 import { Account, AccountFilters, AccountStats, CreateAccountInput, ImportExportResult, UpdateAccountInput } from '../types'
+import type { TagRule, CreateTagRuleInput, UpdateTagRuleInput, TagRuleRunResult } from '../../shared/types'
 
 // Type-safe wrapper around the Electron IPC API exposed via preload
 declare global {
@@ -21,6 +22,14 @@ declare global {
         bulkUpdateTag: (ids: string[], tag: string, mode: 'add' | 'remove') => Promise<number>
         getStats: () => Promise<AccountStats>
         getTags: () => Promise<string[]>
+      }
+      tagRules: {
+        getAll: () => Promise<TagRule[]>
+        create: (input: CreateTagRuleInput) => Promise<TagRule>
+        update: (id: string, input: UpdateTagRuleInput) => Promise<TagRule | null>
+        delete: (id: string) => Promise<boolean>
+        run: () => Promise<TagRuleRunResult[]>
+        onApplied: (cb: (data: { results: TagRuleRunResult[]; totalAffected: number }) => void) => () => void
       }
       data: {
         export: () => Promise<ImportExportResult>
@@ -78,6 +87,15 @@ export const api = {
     bulkUpdateTag: (ids: string[], tag: string, mode: 'add' | 'remove') => getApi().accounts.bulkUpdateTag(ids, tag, mode),
     getStats: () => getApi().accounts.getStats(),
     getTags: () => getApi().accounts.getTags(),
+  },
+  tagRules: {
+    getAll: () => getApi().tagRules.getAll(),
+    create: (input: CreateTagRuleInput) => getApi().tagRules.create(input),
+    update: (id: string, input: UpdateTagRuleInput) => getApi().tagRules.update(id, input),
+    delete: (id: string) => getApi().tagRules.delete(id),
+    run: () => getApi().tagRules.run(),
+    onApplied: (cb: Parameters<Window['api']['tagRules']['onApplied']>[0]) =>
+      getApi().tagRules.onApplied(cb),
   },
   data: {
     export: () => getApi().data.export(),

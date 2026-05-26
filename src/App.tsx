@@ -9,18 +9,23 @@ import { AccountForm } from './components/AccountForm'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { BulkActionBar } from './components/BulkActionBar'
 import { ShortcutsModal } from './components/ShortcutsModal'
-import { ToastProvider } from './components/ui/toast'
+import { TagRulesModal } from './components/TagRulesModal'
+import { ToastProvider, useToast } from './components/ui/toast'
 import { useAccountStore } from './store/accountStore'
+import { useTagRulesStore } from './store/tagRulesStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { api } from './lib/api'
 
 function AppContent() {
   const { loadAccounts, loadStats, loadTags, activeAccountId } = useAccountStore()
+  const { setLastRunResults } = useTagRulesStore()
+  const { toast } = useToast()
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [showTagRules, setShowTagRules] = useState(false)
 
   useKeyboardShortcuts(() => setShowShortcuts(true))
 
   useEffect(() => {
-    // Diagnostic: check if preload is loaded
     if (typeof window.api === 'undefined') {
       console.error(
         '[MailShelf] window.api is UNDEFINED.\n' +
@@ -35,19 +40,26 @@ function AppContent() {
     loadAccounts()
     loadStats()
     loadTags()
+
+    // Listen for scheduler-triggered rule applications
+    const unsub = api.tagRules.onApplied(({ results, totalAffected }) => {
+      setLastRunResults(results)
+      loadAccounts()
+      loadStats()
+      if (totalAffected > 0) {
+        toast(`Tag rules applied: ${totalAffected} account${totalAffected !== 1 ? 's' : ''} updated`, 'success')
+      }
+    })
+    return () => unsub()
   }, [])
 
   return (
     <div className="flex flex-col h-screen bg-shelf-bg text-shelf-text overflow-hidden">
-      {/* Title bar */}
       <TitleBar />
 
-      {/* Main layout */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar />
+        <Sidebar onOpenTagRules={() => setShowTagRules(true)} />
 
-        {/* Center: list + toolbar */}
         <div className="flex flex-col flex-1 overflow-hidden min-w-0">
           <Toolbar onShowShortcuts={() => setShowShortcuts(true)} />
           <SearchBar />
@@ -55,14 +67,13 @@ function AppContent() {
           <AccountList />
         </div>
 
-        {/* Right: detail panel — only when account selected */}
         {activeAccountId && <AccountDetail />}
       </div>
 
-      {/* Modals */}
       <AccountForm />
       <ConfirmDialog />
       <ShortcutsModal open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <TagRulesModal open={showTagRules} onClose={() => setShowTagRules(false)} />
     </div>
   )
 }

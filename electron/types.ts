@@ -8,6 +8,11 @@ export type {
   UpdateAccountInput,
   AccountFilters,
   AccountStats,
+  TagRule,
+  TagRuleTrigger,
+  CreateTagRuleInput,
+  UpdateTagRuleInput,
+  TagRuleRunResult,
 } from '../shared/types'
 
 /**
@@ -25,4 +30,18 @@ export interface AccountRow {
   created_at: string
   updated_at: string
   last_used_at: string | null
+}
+
+/** Raw DB row for tag_rules — enabled stored as 0/1 integer */
+export interface TagRuleRow {
+  id: string
+  tag: string
+  from_status: import('../shared/types').AccountStatus
+  to_status: import('../shared/types').AccountStatus
+  trigger: import('../shared/types').TagRuleTrigger
+  trigger_value: number
+  enabled: number   // 0 | 1
+  created_at: string
+  updated_at: string
+  last_run_at: string | null
 }

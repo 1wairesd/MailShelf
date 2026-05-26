@@ -10,10 +10,11 @@ import {
   Download,
   Upload,
   Hash,
-  X,
+  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
+import { useTagRulesStore } from '@/store/tagRulesStore'
 import { AccountStatus, STATUS_CONFIG } from '@/types'
 import { useToast } from './ui/toast'
 
@@ -26,7 +27,7 @@ const STATUS_ITEMS: { status: AccountStatus | 'all'; label: string; icon: React.
   { status: 'archived', label: 'Archived', icon: <Archive size={15} /> },
 ]
 
-export function Sidebar() {
+export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
   const {
     stats,
     filters,
@@ -37,7 +38,14 @@ export function Sidebar() {
     exportData,
     importData,
   } = useAccountStore()
+  const { rules } = useTagRulesStore()
   const { toast } = useToast()
+  const enabledRulesCount = rules.filter(r => r.enabled).length
+
+  // Load rules once so the badge count is accurate
+  React.useEffect(() => {
+    useTagRulesStore.getState().loadRules()
+  }, [])
 
   const activeTagFilters = filters.tags ?? []
 
@@ -174,15 +182,7 @@ export function Sidebar() {
               )
             })}
           </div>
-          {activeTagFilters.length > 0 && (
-            <button
-              onClick={() => setTagFilter([])}
-              className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1 rounded-md text-xs text-shelf-text-subtle hover:text-shelf-text hover:bg-shelf-elevated transition-colors"
-            >
-              <X size={10} />
-              Clear tag filter
-            </button>
-          )}
+
         </div>
       )}
 
@@ -195,6 +195,18 @@ export function Sidebar() {
           Data
         </p>
         <div className="flex flex-col gap-0.5">
+          <button
+            onClick={onOpenTagRules}
+            className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm text-shelf-text-muted hover:bg-shelf-elevated hover:text-shelf-text transition-colors"
+          >
+            <Zap size={14} className="shrink-0" />
+            <span>Tag Rules</span>
+            {enabledRulesCount > 0 && (
+              <span className="ml-auto text-[10px] font-medium tabular-nums bg-shelf-accent/20 text-shelf-accent px-1.5 py-0.5 rounded-full">
+                {enabledRulesCount}
+              </span>
+            )}
+          </button>
           <button
             onClick={handleImport}
             className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm text-shelf-text-muted hover:bg-shelf-elevated hover:text-shelf-text transition-colors"

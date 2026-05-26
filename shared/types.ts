@@ -64,3 +64,54 @@ export interface AccountStats {
   dead: number
   archived: number
 }
+
+// ─── Tag Rules ────────────────────────────────────────────────────────────────
+
+/**
+ * How the rule triggers:
+ * - 'after_days'   — N days after the account's status was last changed
+ * - 'day_of_month' — on a specific day of each month (1–28)
+ * - 'day_of_week'  — on a specific weekday (0=Sun … 6=Sat)
+ */
+export type TagRuleTrigger = 'after_days' | 'day_of_month' | 'day_of_week'
+
+export interface TagRule {
+  id: string
+  /** The tag this rule applies to (e.g. "waiting-reset") */
+  tag: string
+  /** Only accounts with this status are eligible */
+  from_status: AccountStatus
+  /** Status to transition to when the rule fires */
+  to_status: AccountStatus
+  trigger: TagRuleTrigger
+  /** after_days: number of days; day_of_month: 1–28; day_of_week: 0–6 */
+  trigger_value: number
+  enabled: boolean
+  created_at: string
+  updated_at: string
+  /** ISO timestamp of the last time this rule was evaluated */
+  last_run_at: string | null
+}
+
+export interface CreateTagRuleInput {
+  tag: string
+  from_status: AccountStatus
+  to_status: AccountStatus
+  trigger: TagRuleTrigger
+  trigger_value: number
+  enabled?: boolean
+}
+
+export interface UpdateTagRuleInput {
+  tag?: string
+  from_status?: AccountStatus
+  to_status?: AccountStatus
+  trigger?: TagRuleTrigger
+  trigger_value?: number
+  enabled?: boolean
+}
+
+export interface TagRuleRunResult {
+  ruleId: string
+  affected: number
+}

@@ -9,6 +9,11 @@ import {
   AccountStats,
   CreateAccountInput,
   UpdateAccountInput,
+  TagRule,
+  TagRuleRow,
+  CreateTagRuleInput,
+  UpdateTagRuleInput,
+  TagRuleRunResult,
 } from './types'
 
 export class DatabaseService {
@@ -69,6 +74,19 @@ export class DatabaseService {
         INSERT INTO accounts_fts(rowid, id, email, notes, tags)
         VALUES (new.rowid, new.id, new.email, new.notes, new.tags);
       END;
+
+      CREATE TABLE IF NOT EXISTS tag_rules (
+        id            TEXT PRIMARY KEY,
+        tag           TEXT NOT NULL,
+        from_status   TEXT NOT NULL,
+        to_status     TEXT NOT NULL,
+        trigger       TEXT NOT NULL CHECK(trigger IN ('after_days','day_of_month','day_of_week')),
+        trigger_value INTEGER NOT NULL,
+        enabled       INTEGER NOT NULL DEFAULT 1,
+        created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+        last_run_at   TEXT
+      );
     `)
   }
 
@@ -391,7 +409,204 @@ export class DatabaseService {
     return importMany(accounts)
   }
 
+  // ─── Tag Rules ──────────────────────────────────────────────────────────────
+
+  private rowToTagRule(row: TagRuleRow): TagRule {
+    return {
+      ...row,
+      enabled: row.enabled === 1,
+    }
+  }
+
+  getTagRules(): TagRule[] {
+    const rows = this.db.prepare(
+      'SELECT * FROM tag_rules ORDER BY created_at ASC'
+    ).all() as TagRuleRow[]
+    return rows.map(r => this.rowToTagRule(r))
+  }
+
+  getTagRuleById(id: string): TagRule | null {
+    const row = this.db.prepare('SELECT * FROM tag_rules WHERE id = ?').get(id) as TagRuleRow | undefined
+    return row ? this.rowToTagRule(row) : null
+  }
+
+  createTagRule(input: CreateTagRuleInput): TagRule {
+    const id = uuidv4()
+    const now = new Date().toISOString()
+    this.db.prepare(`
+      INSERT INTO tag_rules (id, tag, from_status, to_status, trigger, trigger_value, enabled, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      input.tag,
+      input.from_status,
+      input.to_status,
+      input.trigger,
+      input.trigger_value,
+      input.enabled !== false ? 1 : 0,
+      now,
+      now,
+    )
+    return this.getTagRuleById(id)!
+  }
+
+  updateTagRule(id: string, input: UpdateTagRuleInput): TagRule | null {
+    const existing = this.getTagRuleById(id)
+    if (!existing) return null
+    const now = new Date().toISOString()
+    this.db.prepare(`
+      UPDATE tag_rules SET
+        tag           = ?,
+        from_status   = ?,
+        to_status     = ?,
+        trigger       = ?,
+        trigger_value = ?,
+        enabled       = ?,
+        updated_at    = ?
+      WHERE id = ?
+    `).run(
+      input.tag ?? existing.tag,
+      input.from_status ?? existing.from_status,
+      input.to_status ?? existing.to_status,
+      input.trigger ?? existing.trigger,
+      input.trigger_value ?? existing.trigger_value,
+      input.enabled !== undefined ? (input.enabled ? 1 : 0) : (existing.enabled ? 1 : 0),
+      now,
+      id,
+    )
+    return this.getTagRuleById(id)
+  }
+
+  deleteTagRule(id: string): boolean {
+    return this.db.prepare('DELETE FROM tag_rules WHERE id = ?').run(id).changes > 0
+  }
+
+  /**
+   * Evaluate all enabled tag rules and apply status transitions.
+   *
+   * Catch-up logic: if the app was offline and missed scheduled firings,
+   * the rule fires immediately on the next startup rather than waiting for
+   * the next calendar slot.
+   *
+   * after_days   — fires if account.updated_at is older than N days (unchanged)
+   * day_of_month — fires if the rule has never run OR last ran before the most
+   *                recent occurrence of trigger_value day-of-month
+   * day_of_week  — fires if the rule has never run OR last ran before the most
+   *                recent occurrence of trigger_value weekday
+   */
+  runTagRules(): TagRuleRunResult[] {
+    const rules = this.getTagRules().filter(r => r.enabled)
+    const results: TagRuleRunResult[] = []
+    const now = new Date()
+
+    for (const rule of rules) {
+      let affected = 0
+
+      // Fetch candidate accounts: matching tag + from_status
+      const allRows = this.db.prepare(
+        'SELECT id, tags, status, updated_at FROM accounts WHERE status = ?'
+      ).all(rule.from_status) as { id: string; tags: string; status: string; updated_at: string }[]
+
+      const candidates = allRows.filter(row => {
+        try {
+          const tags: string[] = JSON.parse(row.tags)
+          return tags.includes(rule.tag)
+        } catch {
+          return false
+        }
+      })
+
+      const toUpdate: string[] = []
+
+      // ── Compute whether this rule should fire right now ──────────────────
+      // For day_of_month / day_of_week we find the most recent past occurrence
+      // of the target slot and check if the rule already ran after that slot.
+      const lastRunAt = rule.last_run_at ? new Date(rule.last_run_at) : null
+
+      let ruleShouldFire = false
+
+      if (rule.trigger === 'day_of_month') {
+        // Most recent past date where day-of-month === trigger_value
+        const lastOccurrence = lastOccurrenceDayOfMonth(now, rule.trigger_value)
+        // Fire if we've never run, or if we last ran before that occurrence
+        ruleShouldFire = lastRunAt === null || lastRunAt < lastOccurrence
+      } else if (rule.trigger === 'day_of_week') {
+        // Most recent past date where weekday === trigger_value
+        const lastOccurrence = lastOccurrenceDayOfWeek(now, rule.trigger_value)
+        ruleShouldFire = lastRunAt === null || lastRunAt < lastOccurrence
+      }
+
+      for (const row of candidates) {
+        const updatedAt = new Date(row.updated_at)
+
+        if (rule.trigger === 'after_days') {
+          // Simple: has enough time passed since the account was last updated?
+          const diffDays = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24)
+          if (diffDays >= rule.trigger_value) {
+            toUpdate.push(row.id)
+          }
+        } else if (ruleShouldFire) {
+          // day_of_month / day_of_week: rule fires for all matching candidates
+          toUpdate.push(row.id)
+        }
+      }
+
+      if (toUpdate.length > 0) {
+        affected = this.bulkUpdateStatus(toUpdate, rule.to_status)
+      }
+
+      // Update last_run_at
+      this.db.prepare('UPDATE tag_rules SET last_run_at = ? WHERE id = ?')
+        .run(now.toISOString(), rule.id)
+
+      results.push({ ruleId: rule.id, affected })
+    }
+
+    return results
+  }
+
   close() {
     this.db.close()
   }
+}
+
+// ─── Helpers for catch-up scheduling ─────────────────────────────────────────
+
+/**
+ * Returns the most recent past Date (≤ now) where day-of-month === targetDay.
+ * If today IS targetDay, returns today at 00:00:00.
+ * Example: now=2025-05-15, targetDay=1  → 2025-05-01 00:00:00
+ *          now=2025-05-01, targetDay=1  → 2025-05-01 00:00:00
+ *          now=2025-05-01, targetDay=20 → 2025-04-20 00:00:00
+ */
+function lastOccurrenceDayOfMonth(now: Date, targetDay: number): Date {
+  const y = now.getFullYear()
+  const m = now.getMonth()
+  const d = now.getDate()
+
+  if (d >= targetDay) {
+    // This month's occurrence has already passed (or is today)
+    return new Date(y, m, targetDay, 0, 0, 0, 0)
+  } else {
+    // This month's occurrence hasn't happened yet — use last month's
+    const prevMonth = m === 0 ? 11 : m - 1
+    const prevYear = m === 0 ? y - 1 : y
+    // Clamp to last day of prev month (handles targetDay=28 in Feb etc.)
+    const lastDayOfPrevMonth = new Date(y, m, 0).getDate()
+    const clampedDay = Math.min(targetDay, lastDayOfPrevMonth)
+    return new Date(prevYear, prevMonth, clampedDay, 0, 0, 0, 0)
+  }
+}
+
+/**
+ * Returns the most recent past Date (≤ now) where weekday === targetDow (0=Sun…6=Sat).
+ * If today IS targetDow, returns today at 00:00:00.
+ */
+function lastOccurrenceDayOfWeek(now: Date, targetDow: number): Date {
+  const todayDow = now.getDay()
+  const daysBack = (todayDow - targetDow + 7) % 7  // 0 if today matches
+  const result = new Date(now)
+  result.setDate(now.getDate() - daysBack)
+  result.setHours(0, 0, 0, 0)
+  return result
 }
