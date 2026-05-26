@@ -7,7 +7,9 @@ import { registerAccountsIpc } from './ipc/accounts'
 import { registerDataIpc } from './ipc/data'
 import { registerAppIpc } from './ipc/app'
 import { registerTagRulesIpc } from './ipc/tagRules'
+import { registerSettingsIpc } from './ipc/settings'
 import { startScheduler, stopScheduler } from './scheduler'
+import { initSettings, getSettings } from './settings'
 
 let mainWindow: BrowserWindow | null = null
 let db: DatabaseService | null = null
@@ -16,11 +18,16 @@ const isDev = process.env.NODE_ENV === 'development'
 
 // ─── Auto-updater ─────────────────────────────────────────────────────────────
 
-function initAutoUpdater() {
-  if (isDev) return  // don't check for updates in dev mode
+let updateCheckTimer: ReturnType<typeof setInterval> | null = null
 
-  autoUpdater.autoDownload = true        // download in background automatically
-  autoUpdater.autoInstallOnAppQuit = true // install when user quits
+function initAutoUpdater() {
+  if (isDev) return
+
+  const settings = getSettings()
+  const { checkOnStartup, autoDownload, checkIntervalHours } = settings.updates
+
+  autoUpdater.autoDownload = autoDownload
+  autoUpdater.autoInstallOnAppQuit = true
 
   autoUpdater.on('update-available', (info) => {
     console.log('[Updater] Update available:', info.version)
@@ -46,9 +53,7 @@ function initAutoUpdater() {
 
   autoUpdater.on('update-downloaded', (info) => {
     console.log('[Updater] Update downloaded:', info.version)
-    mainWindow?.webContents.send('updater:update-downloaded', {
-      version: info.version,
-    })
+    mainWindow?.webContents.send('updater:update-downloaded', { version: info.version })
   })
 
   autoUpdater.on('error', (err) => {
@@ -56,15 +61,35 @@ function initAutoUpdater() {
     mainWindow?.webContents.send('updater:error', { message: err.message })
   })
 
-  // Check on startup, then every 4 hours
-  autoUpdater.checkForUpdates().catch(err =>
-    console.error('[Updater] checkForUpdates failed:', err)
-  )
-  setInterval(() => {
+  if (checkOnStartup) {
     autoUpdater.checkForUpdates().catch(err =>
-      console.error('[Updater] periodic check failed:', err)
+      console.error('[Updater] startup check failed:', err)
     )
-  }, 4 * 60 * 60 * 1000)
+  }
+
+  scheduleUpdateCheck(checkIntervalHours)
+}
+
+function scheduleUpdateCheck(intervalHours: number) {
+  if (updateCheckTimer) {
+    clearInterval(updateCheckTimer)
+    updateCheckTimer = null
+  }
+  if (intervalHours > 0) {
+    updateCheckTimer = setInterval(() => {
+      autoUpdater.checkForUpdates().catch(err =>
+        console.error('[Updater] periodic check failed:', err)
+      )
+    }, intervalHours * 60 * 60 * 1000)
+  }
+}
+
+/** Called from settings IPC when user changes update preferences */
+export function applyUpdaterSettings() {
+  if (isDev) return
+  const { autoDownload, checkIntervalHours } = getSettings().updates
+  autoUpdater.autoDownload = autoDownload
+  scheduleUpdateCheck(checkIntervalHours)
 }
 
 
@@ -160,6 +185,7 @@ function initDatabase() {
   try {
     const userDataPath = app.getPath('userData')
     console.log('[MailShelf] userData path:', userDataPath)
+    initSettings(userDataPath)
     initCrypto(userDataPath)
     db = new DatabaseService(userDataPath)
     console.log('[MailShelf] Database initialized OK')
@@ -185,6 +211,7 @@ function registerIpc() {
   registerDataIpc(() => db, () => mainWindow)
   registerAppIpc()
   registerTagRulesIpc(() => db)
+  registerSettingsIpc()
 
   // Updater controls
   ipcMain.handle('updater:check', () =>
@@ -193,6 +220,8 @@ function registerIpc() {
   ipcMain.on('updater:install', () => {
     autoUpdater.quitAndInstall(false, true)
   })
+  // Re-apply updater config when settings change
+  ipcMain.on('updater:applySettings', () => applyUpdaterSettings())
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────

@@ -1,6 +1,15 @@
 import { Account, AccountFilters, AccountStats, CreateAccountInput, ImportExportResult, UpdateAccountInput } from '../types'
 import type { TagRule, CreateTagRuleInput, UpdateTagRuleInput, TagRuleRunResult } from '../../shared/types'
 
+// ─── AppSettings (mirrored from electron/settings.ts) ────────────────────────
+export interface AppSettings {
+  updates: {
+    checkOnStartup: boolean
+    autoDownload: boolean
+    checkIntervalHours: 0 | 1 | 4 | 24
+  }
+}
+
 // Type-safe wrapper around the Electron IPC API exposed via preload
 declare global {
   interface Window {
@@ -54,6 +63,11 @@ declare global {
         onDownloadProgress: (cb: (p: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => void) => () => void
         onUpdateDownloaded: (cb: (info: { version: string }) => void) => () => void
         onError: (cb: (err: { message: string }) => void) => () => void
+      }
+      settings: {
+        get: () => Promise<AppSettings>
+        updateUpdates: (patch: Partial<AppSettings['updates']>) => Promise<AppSettings>
+        applyUpdaterSettings: () => void
       }
     }
   }
@@ -123,5 +137,10 @@ export const api = {
     onDownloadProgress: (cb: Parameters<Window['api']['updater']['onDownloadProgress']>[0]) => getApi().updater.onDownloadProgress(cb),
     onUpdateDownloaded: (cb: Parameters<Window['api']['updater']['onUpdateDownloaded']>[0]) => getApi().updater.onUpdateDownloaded(cb),
     onError: (cb: Parameters<Window['api']['updater']['onError']>[0]) => getApi().updater.onError(cb),
+  },
+  settings: {
+    get: () => getApi().settings.get(),
+    updateUpdates: (patch: Partial<AppSettings['updates']>) => getApi().settings.updateUpdates(patch),
+    applyUpdaterSettings: () => getApi().settings.applyUpdaterSettings(),
   },
 }

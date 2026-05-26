@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { AccountFilters, CreateAccountInput, UpdateAccountInput, CreateTagRuleInput, UpdateTagRuleInput } from './types'
+import type { AppSettings } from './settings'
 
 const api = {
   // Window controls
@@ -64,6 +65,14 @@ const api = {
     checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
     openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
+  },
+
+  // Settings
+  settings: {
+    get: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get'),
+    updateUpdates: (patch: Partial<AppSettings['updates']>): Promise<AppSettings> =>
+      ipcRenderer.invoke('settings:updateUpdates', patch),
+    applyUpdaterSettings: () => ipcRenderer.send('updater:applySettings'),
   },
 
   // Auto-updater
