@@ -131,6 +131,30 @@ function UpdateSettings() {
         </div>
       </div>
 
+      {/* Channel */}
+      <div>
+        <p className="text-sm text-shelf-text mb-0.5">Update channel</p>
+        <p className="text-xs text-shelf-text-subtle mb-2">
+          Beta includes pre-releases — may be unstable
+        </p>
+        <div className="flex gap-2">
+          {(['stable', 'beta'] as const).map(ch => (
+            <button
+              key={ch}
+              onClick={() => save({ channel: ch })}
+              className={cn(
+                'flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors capitalize',
+                settings.channel === ch
+                  ? 'border-shelf-accent bg-shelf-accent/8 text-shelf-accent'
+                  : 'border-shelf-border text-shelf-text-muted hover:bg-shelf-elevated'
+              )}
+            >
+              {ch}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {saving && (
         <p className="text-xs text-shelf-text-subtle text-center">Saving…</p>
       )}

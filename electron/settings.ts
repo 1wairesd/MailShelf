@@ -9,6 +9,8 @@ export interface AppSettings {
     autoDownload: boolean
     /** How often to recheck in hours (0 = never / manual only) */
     checkIntervalHours: 1 | 4 | 24 | 0
+    /** Update channel: stable only, or include pre-releases */
+    channel: 'stable' | 'beta'
   }
 }
 
@@ -17,6 +19,7 @@ const DEFAULTS: AppSettings = {
     checkOnStartup: true,
     autoDownload: true,
     checkIntervalHours: 4,
+    channel: 'stable',
   },
 }
 

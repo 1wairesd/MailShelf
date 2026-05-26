@@ -38,7 +38,7 @@ Everything stays on your machine. No cloud, no sync, no telemetry.
 - **Keyboard shortcuts** — full keyboard navigation, press `?` to see all
 - **Encrypted storage** — passwords encrypted with AES-256-GCM, key protected by OS keychain (DPAPI / Keychain / libsecret)
 - **Virtualized list** — handles thousands of accounts without lag
-- **Update checker** — checks GitHub Releases on startup and notifies when a new version is available
+- **Update checker** — checks GitHub Releases on startup and notifies when a new version is available; downloads and installs updates in the background with your confirmation
 
 ## Tag Rules
 
@@ -91,13 +91,25 @@ npm run dist:linux   # build Linux AppImage + deb
 All three platforms are built automatically on GitHub Actions when you push a version tag.
 Use the release script to bump the version, commit, tag, and push in one step:
 
+**Stable releases:**
 ```bash
 npm run release          # patch bump: 1.0.0 → 1.0.1
 npm run release minor    # minor bump: 1.0.0 → 1.1.0
 npm run release major    # major bump: 1.0.0 → 2.0.0
 ```
 
-The script will ask for confirmation, then push the tag. GitHub Actions builds Windows, macOS, and Linux in parallel and publishes a release with auto-generated changelog.
+**Pre-releases (beta / rc):**
+```bash
+npm run release:beta           # 1.0.0 → 1.0.1-beta.0
+npm run release:beta minor     # 1.0.0 → 1.1.0-beta.0
+npm run release:beta           # 1.0.1-beta.0 → 1.0.1-beta.1  (bump pre number)
+npm run release:rc             # 1.0.0 → 1.0.1-rc.0
+npm run release:stable         # 1.0.1-beta.3 → 1.0.1  (promote to stable)
+```
+
+The script asks for confirmation, then pushes the tag. GitHub Actions builds Windows, macOS, and Linux in parallel and publishes a release with auto-generated changelog.
+
+Pre-release tags (containing `-`) are published as GitHub pre-releases and are only delivered to users who opted into the **beta** update channel in Settings → Updates.
 
 ## Keyboard Shortcuts
 
@@ -116,9 +128,11 @@ The script will ask for confirmation, then push the tag. GitHub Actions builds W
 ## Data & Privacy
 
 - Database: `%APPDATA%\mailshelf\mailshelf.db` (Windows) / `~/.config/mailshelf` (Linux) / `~/Library/Application Support/mailshelf` (macOS)
+- Settings: `settings.json` in the same folder as the database
 - Passwords encrypted with AES-256-GCM before storing
 - Encryption key stored in OS keychain via Electron safeStorage
-- Update check makes one HTTPS request to `api.github.com` on startup — no other network activity
+- Auto-update downloads from GitHub Releases over HTTPS — no other network activity
+- Updates are downloaded silently in the background and installed only when you click **Restart & Install**
 
 ## Tech Stack
 

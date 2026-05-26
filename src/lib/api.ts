@@ -7,6 +7,7 @@ export interface AppSettings {
     checkOnStartup: boolean
     autoDownload: boolean
     checkIntervalHours: 0 | 1 | 4 | 24
+    channel: 'stable' | 'beta'
   }
 }
 

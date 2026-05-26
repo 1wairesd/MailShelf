@@ -24,10 +24,12 @@ function initAutoUpdater() {
   if (isDev) return
 
   const settings = getSettings()
-  const { checkOnStartup, autoDownload, checkIntervalHours } = settings.updates
+  const { checkOnStartup, autoDownload, checkIntervalHours, channel } = settings.updates
 
   autoUpdater.autoDownload = autoDownload
   autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.channel = channel === 'beta' ? 'beta' : 'latest'
+  autoUpdater.allowPrerelease = channel === 'beta'
 
   autoUpdater.on('update-available', (info) => {
     console.log('[Updater] Update available:', info.version)
@@ -87,8 +89,10 @@ function scheduleUpdateCheck(intervalHours: number) {
 /** Called from settings IPC when user changes update preferences */
 export function applyUpdaterSettings() {
   if (isDev) return
-  const { autoDownload, checkIntervalHours } = getSettings().updates
+  const { autoDownload, checkIntervalHours, channel } = getSettings().updates
   autoUpdater.autoDownload = autoDownload
+  autoUpdater.channel = channel === 'beta' ? 'beta' : 'latest'
+  autoUpdater.allowPrerelease = channel === 'beta'
   scheduleUpdateCheck(checkIntervalHours)
 }
 
