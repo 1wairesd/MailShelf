@@ -101,7 +101,7 @@ if (promote) {
   // stable bump — must not be on a pre-release
   if (curChannel) {
     console.error(`  ✗ Currently on pre-release ${current}.`)
-    console.error(`  Use "npm run release stable" to promote, or "npm run release ${channel}" to bump pre.`)
+    console.error(`  Use "npm run release stable" to promote, or "npm run release:${curChannel}" to bump pre.`)
     process.exit(1)
   }
   const [nMaj, nMin, nPat] = bumpBase(bumpType)
