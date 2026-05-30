@@ -22,6 +22,7 @@ export function Dropdown({ trigger, items, align = 'right', className }: Dropdow
   const [open, setOpen] = React.useState(false)
   const [coords, setCoords] = React.useState({ x: 0, y: 0 })
   const triggerRef = React.useRef<HTMLDivElement>(null)
+  const menuRef = React.useRef<HTMLDivElement>(null)
 
   const handleTriggerClick = (e: React.MouseEvent) => {
     e.stopPropagation()  // prevent card onClick
@@ -44,9 +45,10 @@ export function Dropdown({ trigger, items, align = 'right', className }: Dropdow
   React.useEffect(() => {
     if (!open) return
     const handler = (e: PointerEvent) => {
-      if (triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      // Don't close if clicking inside the trigger or the portal menu itself
+      if (triggerRef.current && triggerRef.current.contains(e.target as Node)) return
+      if (menuRef.current && menuRef.current.contains(e.target as Node)) return
+      setOpen(false)
     }
     // rAF so the pointerdown that opened the menu doesn't immediately close it
     let rafId: number
@@ -82,6 +84,7 @@ export function Dropdown({ trigger, items, align = 'right', className }: Dropdow
 
       {open && createPortal(
         <div
+          ref={menuRef}
           style={menuStyle}
           className="min-w-[160px] bg-shelf-elevated border border-shelf-border rounded-lg shadow-xl py-1 animate-scale-in"
         >

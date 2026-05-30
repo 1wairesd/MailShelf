@@ -132,7 +132,6 @@ jobs:
         with:
           name: "MailShelf ${{ github.ref_name }}"
           tag_name: ${{ github.ref_name }}
-          # Draft if any platform failed — won't show as "latest" until manually published
           draft: ${{ needs.build.result != 'success' }}
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
@@ -142,6 +141,19 @@ jobs:
             artifacts/**/*.dmg
             artifacts/**/*.AppImage
             artifacts/**/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload latest*.yml only for stable releases.
+      # Pre-release builds generate a latest.yml that points at a non-existent
+      # stable asset — uploading it would break auto-update for stable users.
+      - name: Upload update metadata (stable only)
+        if: ${{ !contains(github.ref_name, '-') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          fail_on_unmatched_files: false
+          files: |
             artifacts/**/latest.yml
             artifacts/**/latest-mac.yml
             artifacts/**/latest-linux.yml

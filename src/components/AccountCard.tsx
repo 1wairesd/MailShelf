@@ -84,9 +84,11 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
   useEffect(() => {
     if (!addingTag) return
     const handler = (e: PointerEvent) => {
-      if (tagInputRef.current && !tagInputRef.current.contains(e.target as Node)) {
-        setAddingTag(false)
-      }
+      // Also allow clicks inside the portal dropdown (rendered in document.body, outside card DOM)
+      const portal = document.getElementById('tag-dropdown-portal')
+      if (tagInputRef.current && tagInputRef.current.contains(e.target as Node)) return
+      if (portal && portal.contains(e.target as Node)) return
+      setAddingTag(false)
     }
     document.addEventListener('pointerdown', handler)
     return () => document.removeEventListener('pointerdown', handler)
