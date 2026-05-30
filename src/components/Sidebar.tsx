@@ -42,6 +42,12 @@ export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
   const { toast } = useToast()
   const enabledRulesCount = rules.filter(r => r.enabled).length
 
+  const [appVersion, setAppVersion] = React.useState<string>('')
+
+  React.useEffect(() => {
+    window.api.app.getVersion().then((v: string) => setAppVersion(`v${v}`)).catch(() => {})
+  }, [])
+
   // Load rules once so the badge count is accurate
   React.useEffect(() => {
     useTagRulesStore.getState().loadRules()
@@ -223,6 +229,13 @@ export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
           </button>
         </div>
       </div>
+
+      {/* Version */}
+      {appVersion && (
+        <div className="px-5 pb-3">
+          <span className="text-[10px] text-shelf-text-subtle tabular-nums">{appVersion}</span>
+        </div>
+      )}
     </aside>
   )
 }

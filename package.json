@@ -103,7 +103,8 @@
       ],
       "icon": "resources/icon.ico",
       "signingHashAlgorithms": null,
-      "sign": null
+      "sign": null,
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "mac": {
       "target": "dmg",
