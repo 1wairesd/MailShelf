@@ -103,8 +103,7 @@
       ],
       "icon": "resources/icon.ico",
       "signingHashAlgorithms": null,
-      "sign": null,
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "sign": null
     },
     "mac": {
       "target": "dmg",
@@ -124,7 +123,11 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
     }
   }
 }
