@@ -26,6 +26,7 @@ export interface Account {
   created_at: string
   updated_at: string
   last_used_at: string | null
+  archived_at: string | null
 }
 
 export interface CreateAccountInput {
@@ -45,6 +46,7 @@ export interface UpdateAccountInput {
   tags?: string[]
   status?: AccountStatus
   last_used_at?: string | null
+  archived_at?: string | null
 }
 
 export interface AccountFilters {

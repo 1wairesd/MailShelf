@@ -1,9 +1,11 @@
-import { useRef, useEffect } from 'react'
-import { Search, X, SlidersHorizontal } from 'lucide-react'
+import { useRef, useEffect, useState } from 'react'
+import { Search, X, SlidersHorizontal, Plus, Keyboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
 import { Select } from './ui/select'
 import { SortField, SortOrder, PROVIDER_OPTIONS } from '@/types'
+import { Tooltip } from './ui/tooltip'
+import { Button } from './ui/button'
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'created_at',   label: 'Date Created' },
@@ -18,14 +20,16 @@ const PROVIDER_FILTER_OPTIONS = [
   ...PROVIDER_OPTIONS,
 ]
 
-export function SearchBar() {
+export function SearchBar({ onShowShortcuts }: { onShowShortcuts: () => void }) {
   const {
     searchQuery, setSearch,
     filters, setSortBy, setSortOrder,
     setProviderFilter, resetFilters,
     accounts, stats,
+    openCreateForm,
   } = useAccountStore()
   const inputRef = useRef<HTMLInputElement>(null)
+  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -49,45 +53,113 @@ export function SearchBar() {
     (filters.provider && filters.provider !== '') ||
     (filters.tags && filters.tags.length > 0)
 
-  const showCount = hasActiveFilters
-  const resultCount = accounts.length
-  const totalCount = stats.total
+  const hasNonSearchFilters =
+    (filters.provider && filters.provider !== '') ||
+    (filters.sortBy && filters.sortBy !== 'created_at') ||
+    (filters.sortOrder && filters.sortOrder !== 'desc')
+
+  const filtersOpen = showFilters || !!hasNonSearchFilters
 
   return (
-    <div className="flex flex-col gap-0 border-b border-shelf-border bg-shelf-bg shrink-0">
-      {/* Search row */}
-      <div className="flex items-center gap-2 px-4 py-2.5">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-shelf-text-subtle pointer-events-none" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by email, notes, or tags… (Ctrl+F)"
-            className={cn(
-              'w-full h-8 bg-shelf-surface border border-shelf-border rounded-md pl-8 pr-8 text-sm text-shelf-text placeholder:text-shelf-text-subtle',
-              'focus:outline-none focus:ring-1 focus:ring-shelf-accent focus:border-shelf-accent transition-colors'
+    <div className="border-b border-shelf-border bg-shelf-bg shrink-0">
+      {/* Single row */}
+      <div className="flex items-center gap-2 px-3 py-2">
+        {/* Left: search + filters */}
+        <div className="flex items-center gap-2">
+          {/* Search input */}
+          <div className="relative w-48 shrink-0">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-shelf-text-subtle pointer-events-none" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search… (Ctrl+F)"
+              className={cn(
+                'w-full h-7 bg-shelf-surface border border-shelf-border rounded-md pl-7 pr-7 text-xs text-shelf-text placeholder:text-shelf-text-subtle',
+                'focus:outline-none focus:ring-1 focus:ring-shelf-accent focus:border-shelf-accent transition-colors'
+              )}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-shelf-text-subtle hover:text-shelf-text transition-colors"
+              >
+                <X size={12} />
+              </button>
             )}
-          />
-          {searchQuery && (
+          </div>
+
+          {/* Result count */}
+          {hasActiveFilters && (
+            <span className="text-[11px] text-shelf-text-subtle shrink-0 tabular-nums">
+              {accounts.length}/{stats.total}
+            </span>
+          )}
+
+          {/* Filters toggle */}
+          <Tooltip content="Sort & filter">
             <button
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-shelf-text-subtle hover:text-shelf-text transition-colors"
+              onClick={() => setShowFilters(v => !v)}
+              className={cn(
+                'p-1.5 rounded-md transition-colors shrink-0',
+                filtersOpen || hasNonSearchFilters
+                  ? 'text-shelf-accent bg-shelf-accent/10'
+                  : 'text-shelf-text-subtle hover:text-shelf-text hover:bg-shelf-elevated'
+              )}
             >
-              <X size={13} />
+              <SlidersHorizontal size={13} />
+            </button>
+          </Tooltip>
+
+          {/* Clear */}
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="text-[11px] text-shelf-text-muted hover:text-shelf-text transition-colors px-1.5 py-1 rounded hover:bg-shelf-elevated shrink-0"
+            >
+              Clear
             </button>
           )}
         </div>
 
-        {/* Sort */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <SlidersHorizontal size={13} className="text-shelf-text-subtle" />
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Right: actions */}
+        <div className="flex items-center gap-1.5">
+          <Tooltip content="Keyboard shortcuts (?)">
+            <Button variant="ghost" size="icon-sm" onClick={onShowShortcuts}>
+              <Keyboard size={14} />
+            </Button>
+          </Tooltip>
+
+          <Button
+            variant="default"
+            size="sm"
+            onClick={openCreateForm}
+            className="gap-1.5"
+          >
+            <Plus size={14} />
+            Add Account
+          </Button>
+        </div>
+      </div>
+
+      {/* Expandable filter row */}
+      {filtersOpen && (
+        <div className="flex items-center gap-2 px-3 pb-2">
+          <Select
+            value={filters.provider ?? ''}
+            onChange={v => setProviderFilter(v)}
+            options={PROVIDER_FILTER_OPTIONS}
+            className="w-32"
+          />
           <Select
             value={filters.sortBy ?? 'created_at'}
             onChange={v => setSortBy(v as SortField)}
             options={SORT_OPTIONS}
-            className="w-36"
+            className="w-32"
           />
           <Select
             value={filters.sortOrder ?? 'desc'}
@@ -99,37 +171,7 @@ export function SearchBar() {
             className="w-24"
           />
         </div>
-      </div>
-
-      {/* Filter row */}
-      <div className="flex items-center gap-2 px-4 pb-2">
-        {/* Provider filter */}
-        <Select
-          value={filters.provider ?? ''}
-          onChange={v => setProviderFilter(v)}
-          options={PROVIDER_FILTER_OPTIONS}
-          className="w-36"
-        />
-
-        {/* Result count */}
-        {showCount && (
-          <span className="text-xs text-shelf-text-subtle ml-1">
-            {resultCount} of {totalCount}
-          </span>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Clear */}
-        {hasActiveFilters && (
-          <button
-            onClick={resetFilters}
-            className="text-xs text-shelf-text-muted hover:text-shelf-text transition-colors px-2 py-1 rounded hover:bg-shelf-elevated"
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
+      )}
     </div>
   )
 }

@@ -102,6 +102,10 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.mailshelf.app')
 }
 
+// Improve font rendering sharpness in Chromium/Electron
+app.commandLine.appendSwitch('disable-lcd-text')
+app.commandLine.appendSwitch('enable-font-antialiasing')
+
 // ─── Window ──────────────────────────────────────────────────────────────────
 
 function createWindow() {

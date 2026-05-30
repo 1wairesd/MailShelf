@@ -204,12 +204,14 @@ export function AccountForm() {
             <label className="block text-xs font-medium text-shelf-text-muted mb-1.5">
               Tags
             </label>
-            <TagInput
-              tags={form.tags}
-              allTags={allTags}
-              onChange={tags => setForm(f => ({ ...f, tags }))}
-              placeholder="Add tags… (Enter or ,)"
-            />
+            <div data-tag-input>
+              <TagInput
+                tags={form.tags}
+                allTags={allTags}
+                onChange={tags => setForm(f => ({ ...f, tags }))}
+                placeholder="Add tags… (Enter or ,)"
+              />
+            </div>
             <p className="text-[10px] text-shelf-text-subtle mt-1">
               Start typing to search existing tags or create new ones
             </p>

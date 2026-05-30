@@ -41,7 +41,8 @@ export class DatabaseService {
                     CHECK(status IN ('active','exhausted','waiting-reset','dead','archived')),
         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
-        last_used_at TEXT
+        last_used_at TEXT,
+        archived_at  TEXT
       );
 
       CREATE INDEX IF NOT EXISTS idx_accounts_status ON accounts(status);
@@ -88,6 +89,12 @@ export class DatabaseService {
         last_run_at   TEXT
       );
     `)
+
+    // Migrations for existing databases
+    const cols = (this.db.prepare(`PRAGMA table_info(accounts)`).all() as { name: string }[]).map(c => c.name)
+    if (!cols.includes('archived_at')) {
+      this.db.exec(`ALTER TABLE accounts ADD COLUMN archived_at TEXT`)
+    }
   }
 
   private rowToAccount(row: AccountRow): Account {
@@ -209,8 +216,8 @@ export class DatabaseService {
     const encryptedPassword = encrypt(input.password ?? '')
 
     this.db.prepare(`
-      INSERT INTO accounts (id, email, password, provider, notes, tags, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO accounts (id, email, password, provider, notes, tags, status, created_at, updated_at, archived_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       input.email,
@@ -221,6 +228,7 @@ export class DatabaseService {
       input.status ?? 'active',
       now,
       now,
+      null,
     )
 
     return this.getAccountById(id)!
@@ -232,9 +240,21 @@ export class DatabaseService {
 
     const now = new Date().toISOString()
     const tags = input.tags !== undefined ? JSON.stringify(input.tags) : JSON.stringify(existing.tags)
-    // Re-encrypt if password changed, otherwise re-encrypt existing (already decrypted in existing)
     const newPassword = input.password !== undefined ? input.password : existing.password
     const encryptedPassword = encrypt(newPassword)
+
+    // Auto-set archived_at when transitioning to archived, clear when leaving
+    const newStatus = input.status ?? existing.status
+    let archivedAt: string | null
+    if (input.archived_at !== undefined) {
+      archivedAt = input.archived_at
+    } else if (newStatus === 'archived' && existing.status !== 'archived') {
+      archivedAt = now
+    } else if (newStatus !== 'archived' && existing.status === 'archived') {
+      archivedAt = null
+    } else {
+      archivedAt = existing.archived_at
+    }
 
     this.db.prepare(`
       UPDATE accounts SET
@@ -245,7 +265,8 @@ export class DatabaseService {
         tags         = ?,
         status       = ?,
         updated_at   = ?,
-        last_used_at = ?
+        last_used_at = ?,
+        archived_at  = ?
       WHERE id = ?
     `).run(
       input.email ?? existing.email,
@@ -253,9 +274,10 @@ export class DatabaseService {
       input.provider ?? existing.provider,
       input.notes ?? existing.notes,
       tags,
-      input.status ?? existing.status,
+      newStatus,
       now,
       input.last_used_at !== undefined ? input.last_used_at : existing.last_used_at,
+      archivedAt,
       id,
     )
 
@@ -372,9 +394,44 @@ export class DatabaseService {
     return Array.from(tagSet).sort()
   }
 
+  getTagCounts(): Record<string, number> {
+    const rows = this.db.prepare('SELECT tags FROM accounts').all() as { tags: string }[]
+    const counts: Record<string, number> = {}
+    for (const row of rows) {
+      try {
+        const tags = JSON.parse(row.tags) as string[]
+        for (const tag of tags) {
+          counts[tag] = (counts[tag] ?? 0) + 1
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return counts
+  }
+
   exportAccounts(): Account[] {
     const rows = this.db.prepare('SELECT * FROM accounts ORDER BY created_at DESC').all() as AccountRow[]
     return rows.map(r => this.rowToAccount(r))
+  }
+
+  exportAccountsCSV(): string {
+    const accounts = this.exportAccounts()
+    const headers = ['id', 'email', 'password', 'provider', 'status', 'tags', 'notes', 'created_at', 'updated_at', 'last_used_at', 'archived_at']
+    const escape = (v: unknown) => {
+      const s = v == null ? '' : String(v)
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`
+      }
+      return s
+    }
+    const rows = accounts.map(a => [
+      a.id, a.email, a.password, a.provider, a.status,
+      a.tags.join(';'), a.notes,
+      a.created_at, a.updated_at,
+      a.last_used_at ?? '', a.archived_at ?? '',
+    ].map(escape).join(','))
+    return [headers.join(','), ...rows].join('\n')
   }
 
   importAccounts(accounts: Account[]): number {
@@ -382,13 +439,12 @@ export class DatabaseService {
       let count = 0
       const stmt = this.db.prepare(`
         INSERT OR REPLACE INTO accounts
-          (id, email, password, provider, notes, tags, status, created_at, updated_at, last_used_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (id, email, password, provider, notes, tags, status, created_at, updated_at, last_used_at, archived_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       for (const a of accounts) {
         const id = a.id || uuidv4()
         const tags = Array.isArray(a.tags) ? JSON.stringify(a.tags) : (a.tags ?? '[]')
-        // Encrypt password on import (may be plaintext from export)
         const encryptedPassword = encrypt(a.password ?? '')
         stmt.run(
           id,
@@ -401,6 +457,7 @@ export class DatabaseService {
           a.created_at ?? new Date().toISOString(),
           a.updated_at ?? new Date().toISOString(),
           a.last_used_at ?? null,
+          a.archived_at ?? null,
         )
         count++
       }

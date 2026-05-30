@@ -165,13 +165,16 @@ export function TagInput({
     }
 
     if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
       if (showDropdown && dropdownItems[highlightedIndex]) {
-        const item = dropdownItems[highlightedIndex]
-        addTag(item.startsWith('__create__:') ? item.slice(11) : item)
+        e.preventDefault()
+        addTag(dropdownItems[highlightedIndex].startsWith('__create__:')
+          ? dropdownItems[highlightedIndex].slice(11)
+          : dropdownItems[highlightedIndex])
       } else if (normalizedInput) {
+        e.preventDefault()
         addTag(normalizedInput)
       }
+      // If input is empty and dropdown is closed — let Enter bubble to the form
       return
     }
 

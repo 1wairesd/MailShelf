@@ -9,6 +9,9 @@ export interface AppSettings {
     checkIntervalHours: 0 | 1 | 4 | 24
     channel: 'stable' | 'beta'
   }
+  appearance: {
+    theme: 'dark' | 'light' | 'system'
+  }
 }
 
 // Type-safe wrapper around the Electron IPC API exposed via preload
@@ -32,6 +35,7 @@ declare global {
         bulkUpdateTag: (ids: string[], tag: string, mode: 'add' | 'remove') => Promise<number>
         getStats: () => Promise<AccountStats>
         getTags: () => Promise<string[]>
+        getTagCounts: () => Promise<Record<string, number>>
       }
       tagRules: {
         getAll: () => Promise<TagRule[]>
@@ -43,6 +47,7 @@ declare global {
       }
       data: {
         export: () => Promise<ImportExportResult>
+        exportCSV: () => Promise<ImportExportResult>
         import: () => Promise<ImportExportResult>
       }
       app: {
@@ -68,6 +73,7 @@ declare global {
       settings: {
         get: () => Promise<AppSettings>
         updateUpdates: (patch: Partial<AppSettings['updates']>) => Promise<AppSettings>
+        updateAppearance: (patch: Partial<AppSettings['appearance']>) => Promise<AppSettings>
         applyUpdaterSettings: () => void
       }
     }
@@ -111,6 +117,7 @@ export const api = {
     bulkUpdateTag: (ids: string[], tag: string, mode: 'add' | 'remove') => getApi().accounts.bulkUpdateTag(ids, tag, mode),
     getStats: () => getApi().accounts.getStats(),
     getTags: () => getApi().accounts.getTags(),
+    getTagCounts: () => getApi().accounts.getTagCounts(),
   },
   tagRules: {
     getAll: () => getApi().tagRules.getAll(),
@@ -123,6 +130,7 @@ export const api = {
   },
   data: {
     export: () => getApi().data.export(),
+    exportCSV: () => getApi().data.exportCSV(),
     import: () => getApi().data.import(),
   },
   app: {
@@ -142,6 +150,7 @@ export const api = {
   settings: {
     get: () => getApi().settings.get(),
     updateUpdates: (patch: Partial<AppSettings['updates']>) => getApi().settings.updateUpdates(patch),
+    updateAppearance: (patch: Partial<AppSettings['appearance']>) => getApi().settings.updateAppearance(patch),
     applyUpdaterSettings: () => getApi().settings.applyUpdaterSettings(),
   },
 }

@@ -25,7 +25,7 @@ const STATUS_ITEMS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
 }))
 
 export const AccountCard = React.memo(function AccountCard({ account, isSelected, isActive, onSelect, onClick }: AccountCardProps) {
-  const { openEditForm, deleteAccount, duplicateAccount, updateAccount, showConfirm, allTags } = useAccountStore()
+  const { openEditForm, deleteAccount, duplicateAccount, updateAccount, touchAccount, showConfirm, allTags } = useAccountStore()
   const { toast } = useToast()
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [copiedPass, setCopiedPass] = useState(false)
@@ -40,6 +40,7 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
       setCopiedEmail(true)
       toast('Email copied', 'success')
       setTimeout(() => setCopiedEmail(false), 2000)
+      touchAccount(account.id)
     }
   }
 
@@ -50,6 +51,7 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
       setCopiedPass(true)
       toast('Password copied', 'success')
       setTimeout(() => setCopiedPass(false), 2000)
+      touchAccount(account.id)
     }
   }
 
@@ -261,11 +263,29 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
       )}
 
       {/* Date */}
-      <div className="flex items-center gap-1 pl-7">
-        <Clock size={10} className="text-shelf-text-subtle" />
-        <span className="text-[10px] text-shelf-text-subtle">
-          {formatDate(account.updated_at)}
-        </span>
+      <div className="flex items-center gap-2 pl-7">
+        <div className="flex items-center gap-1">
+          <Clock size={10} className="text-shelf-text-subtle" />
+          <span className="text-[10px] text-shelf-text-subtle">
+            {formatDate(account.updated_at)}
+          </span>
+        </div>
+        {account.last_used_at && (
+          <>
+            <span className="text-[10px] text-shelf-border">·</span>
+            <span className="text-[10px] text-shelf-text-subtle" title="Last used">
+              used {formatDate(account.last_used_at)}
+            </span>
+          </>
+        )}
+        {account.status === 'archived' && account.archived_at && (
+          <>
+            <span className="text-[10px] text-shelf-border">·</span>
+            <span className="text-[10px] text-shelf-text-subtle" title="Archived">
+              archived {formatDate(account.archived_at)}
+            </span>
+          </>
+        )}
       </div>
     </div>
   )

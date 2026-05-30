@@ -12,6 +12,10 @@ export interface AppSettings {
     /** Update channel: stable only, or include pre-releases */
     channel: 'stable' | 'beta'
   }
+  appearance: {
+    /** Color theme */
+    theme: 'dark' | 'light' | 'system'
+  }
 }
 
 const DEFAULTS: AppSettings = {
@@ -20,6 +24,9 @@ const DEFAULTS: AppSettings = {
     autoDownload: true,
     checkIntervalHours: 4,
     channel: 'stable',
+  },
+  appearance: {
+    theme: 'system',
   },
 }
 
@@ -38,9 +45,10 @@ export function getSettings(): AppSettings {
     // Deep merge with defaults so new keys always have a value
     _cache = {
       updates: { ...DEFAULTS.updates, ...(parsed.updates ?? {}) },
+      appearance: { ...DEFAULTS.appearance, ...(parsed.appearance ?? {}) },
     }
   } catch {
-    _cache = { ...DEFAULTS, updates: { ...DEFAULTS.updates } }
+    _cache = { ...DEFAULTS, updates: { ...DEFAULTS.updates }, appearance: { ...DEFAULTS.appearance } }
   }
   return _cache
 }
@@ -54,6 +62,7 @@ export function updateSettings(patch: Partial<AppSettings>): AppSettings {
   const current = getSettings()
   const next: AppSettings = {
     updates: { ...current.updates, ...(patch.updates ?? {}) },
+    appearance: { ...current.appearance, ...(patch.appearance ?? {}) },
   }
   saveSettings(next)
   return next

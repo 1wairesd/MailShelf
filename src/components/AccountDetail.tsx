@@ -3,7 +3,7 @@ import {
   Copy, Check, Eye, EyeOff, Pencil, Trash2,
   Clock, Calendar, Mail,
   Lock, Tag, FileText,
-  Globe, X
+  Globe, X, Archive
 } from 'lucide-react'
 import { cn, copyToClipboard, formatDate, formatDateFull } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
@@ -20,7 +20,7 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
 }))
 
 export function AccountDetail() {
-  const { accounts, activeAccountId, openEditForm, updateAccount, setActiveAccount, showConfirm, deleteAccount, allTags } = useAccountStore()
+  const { accounts, activeAccountId, openEditForm, updateAccount, touchAccount, setActiveAccount, showConfirm, deleteAccount, allTags } = useAccountStore()
   const { toast } = useToast()
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [copiedPass, setCopiedPass] = useState(false)
@@ -41,6 +41,7 @@ export function AccountDetail() {
       setCopiedEmail(true)
       toast('Email copied', 'success')
       setTimeout(() => setCopiedEmail(false), 2000)
+      touchAccount(account.id)
     }
   }
 
@@ -50,6 +51,7 @@ export function AccountDetail() {
       setCopiedPass(true)
       toast('Password copied', 'success')
       setTimeout(() => setCopiedPass(false), 2000)
+      touchAccount(account.id)
     }
   }
 
@@ -248,6 +250,17 @@ export function AccountDetail() {
               </span>
               <span className="text-xs text-shelf-text-muted" title={formatDateFull(account.last_used_at)}>
                 {formatDate(account.last_used_at)}
+              </span>
+            </div>
+          )}
+          {account.status === 'archived' && account.archived_at && (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs text-shelf-text-subtle">
+                <Archive size={11} />
+                Archived
+              </span>
+              <span className="text-xs text-shelf-text-muted" title={formatDateFull(account.archived_at)}>
+                {formatDate(account.archived_at)}
               </span>
             </div>
           )}

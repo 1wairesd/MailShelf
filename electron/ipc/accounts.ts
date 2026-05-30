@@ -115,4 +115,5 @@ export function registerAccountsIpc(getDb: () => DatabaseService | null) {
 
   ipcMain.handle('accounts:getStats', () => db().getStats())
   ipcMain.handle('accounts:getTags', () => db().getAllTags())
+  ipcMain.handle('accounts:getTagCounts', () => db().getTagCounts())
 }

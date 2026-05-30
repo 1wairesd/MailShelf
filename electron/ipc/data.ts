@@ -34,6 +34,34 @@ export function registerDataIpc(
     return { success: true, count: accounts.length }
   })
 
+  ipcMain.handle('data:exportCSV', async () => {
+    const win = getWindow()
+    const db = getDb()
+
+    const confirm = await dialog.showMessageBox(win!, {
+      type: 'none',
+      title: 'Export as CSV',
+      message: 'Passwords will be exported in plain text',
+      detail: 'The CSV file will contain all passwords unencrypted. Make sure to store it in a safe place.',
+      buttons: ['Export', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+    })
+    if (confirm.response === 1) return { success: false }
+
+    const result = await dialog.showSaveDialog(win!, {
+      title: 'Export Accounts as CSV',
+      defaultPath: `mailshelf-export-${new Date().toISOString().split('T')[0]}.csv`,
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    })
+    if (result.canceled || !result.filePath) return { success: false }
+
+    const csv = db?.exportAccountsCSV() ?? ''
+    const count = db?.exportAccounts().length ?? 0
+    fs.writeFileSync(result.filePath, csv, 'utf-8')
+    return { success: true, count }
+  })
+
   ipcMain.handle('data:import', async () => {
     const win = getWindow()
     const db = getDb()

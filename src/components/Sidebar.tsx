@@ -11,12 +11,20 @@ import {
   Upload,
   Hash,
   Zap,
+  Settings,
+  ArrowUpCircle,
+  FileJson,
+  Sheet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
 import { useTagRulesStore } from '@/store/tagRulesStore'
-import { AccountStatus, STATUS_CONFIG } from '@/types'
+import { AccountStatus } from '@/types'
 import { useToast } from './ui/toast'
+import { UpdateModal } from './UpdateModal'
+import { useUpdateCheck } from '@/hooks/useUpdateCheck'
+import { Tooltip } from './ui/tooltip'
+import { Dialog, DialogHeader, DialogBody } from './ui/dialog'
 
 const STATUS_ITEMS: { status: AccountStatus | 'all'; label: string; icon: React.ReactNode }[] = [
   { status: 'all', label: 'All Accounts', icon: <Inbox size={15} /> },
@@ -27,20 +35,26 @@ const STATUS_ITEMS: { status: AccountStatus | 'all'; label: string; icon: React.
   { status: 'archived', label: 'Archived', icon: <Archive size={15} /> },
 ]
 
-export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
+export function Sidebar({ onOpenTagRules, onOpenSettings }: { onOpenTagRules: () => void; onOpenSettings: () => void }) {
   const {
     stats,
     filters,
     allTags,
-    accounts,
+    tagCounts,
     setStatusFilter,
     setTagFilter,
     exportData,
+    exportCSV,
     importData,
   } = useAccountStore()
   const { rules } = useTagRulesStore()
   const { toast } = useToast()
   const enabledRulesCount = rules.filter(r => r.enabled).length
+  const { status: updateStatus, info: updateInfo, check: checkUpdate, install: installUpdate } = useUpdateCheck()
+  const [updateOpen, setUpdateOpen] = React.useState(false)
+  const [exportOpen, setExportOpen] = React.useState(false)
+
+  const hasUpdate = updateStatus === 'downloaded' || updateStatus === 'available' || updateStatus === 'downloading'
 
   const [appVersion, setAppVersion] = React.useState<string>('')
 
@@ -55,23 +69,18 @@ export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
 
   const activeTagFilters = filters.tags ?? []
 
-  // Count accounts per tag — memoized to avoid recalculating on every render
-  const tagCounts = React.useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const account of accounts) {
-      for (const tag of account.tags) {
-        counts[tag] = (counts[tag] ?? 0) + 1
-      }
-    }
-    return counts
-  }, [accounts])
-
   const handleExport = async () => {
     const result = await exportData()
     if (result.success) {
       toast(`Exported ${result.count ?? 0} account${result.count !== 1 ? 's' : ''}`, 'success')
     }
-    // cancelled — no toast
+  }
+
+  const handleExportCSV = async () => {
+    const result = await exportCSV()
+    if (result.success) {
+      toast(`Exported ${result.count ?? 0} account${result.count !== 1 ? 's' : ''} as CSV`, 'success')
+    }
   }
 
   const handleImport = async () => {
@@ -116,7 +125,6 @@ export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
           {STATUS_ITEMS.map(item => {
             const isActive = filters.status === item.status
             const count = getCount(item.status)
-            const config = item.status !== 'all' ? STATUS_CONFIG[item.status] : null
 
             return (
               <button
@@ -125,7 +133,7 @@ export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
                 className={cn(
                   'flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-all duration-100 text-left w-full group',
                   isActive
-                    ? 'bg-shelf-accent/15 text-shelf-accent'
+                    ? 'bg-shelf-accent/15 text-shelf-accent hover:bg-shelf-accent/25'
                     : 'text-shelf-text-muted hover:bg-shelf-elevated hover:text-shelf-text'
                 )}
               >
@@ -143,9 +151,6 @@ export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
                   )}>
                     {count}
                   </span>
-                )}
-                {config && isActive && (
-                  <span className={cn('w-1.5 h-1.5 rounded-full', config.dotColor)} />
                 )}
               </button>
             )
@@ -170,7 +175,7 @@ export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
                   className={cn(
                     'flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-all duration-100 text-left w-full group',
                     isActive
-                      ? 'bg-shelf-accent/15 text-shelf-accent'
+                      ? 'bg-shelf-accent/15 text-shelf-accent hover:bg-shelf-accent/25'
                       : 'text-shelf-text-muted hover:bg-shelf-elevated hover:text-shelf-text'
                   )}
                 >
@@ -221,21 +226,93 @@ export function Sidebar({ onOpenTagRules }: { onOpenTagRules: () => void }) {
             <span>Import JSON</span>
           </button>
           <button
-            onClick={handleExport}
+            onClick={() => setExportOpen(true)}
             className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm text-shelf-text-muted hover:bg-shelf-elevated hover:text-shelf-text transition-colors"
           >
             <Download size={14} />
-            <span>Export JSON</span>
+            <span>Export</span>
           </button>
         </div>
       </div>
 
-      {/* Version */}
+      {/* Version + Settings + Updates */}
       {appVersion && (
-        <div className="px-5 pb-3">
-          <span className="text-[10px] text-shelf-text-subtle tabular-nums">{appVersion}</span>
+        <div className="px-3 pb-3 flex items-center justify-between">
+          <span className="text-xs text-shelf-text-subtle tabular-nums">{appVersion}</span>
+          <div className="flex items-center gap-0.5">
+            <Tooltip content={
+              updateStatus === 'downloaded' ? `v${updateInfo.version} ready — click to install` :
+              updateStatus === 'downloading' ? `Downloading… ${updateInfo.percent ?? 0}%` :
+              updateStatus === 'available' ? `Update available: v${updateInfo.version}` :
+              'Check for updates'
+            }>
+              <button
+                onClick={() => setUpdateOpen(true)}
+                className={cn(
+                  'relative p-1.5 rounded-md transition-colors',
+                  hasUpdate
+                    ? 'text-shelf-accent hover:bg-shelf-accent/10'
+                    : 'text-shelf-text-subtle hover:text-shelf-text hover:bg-shelf-elevated'
+                )}
+              >
+                <ArrowUpCircle size={15} />
+                {hasUpdate && (
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-shelf-accent" />
+                )}
+              </button>
+            </Tooltip>
+            <Tooltip content="Settings">
+              <button
+                onClick={onOpenSettings}
+                className="p-1.5 rounded-md text-shelf-text-subtle hover:text-shelf-text hover:bg-shelf-elevated transition-colors"
+              >
+                <Settings size={15} />
+              </button>
+            </Tooltip>
+          </div>
         </div>
       )}
+
+      <UpdateModal
+        open={updateOpen}
+        onClose={() => setUpdateOpen(false)}
+        status={updateStatus}
+        info={updateInfo}
+        onCheck={checkUpdate}
+        onInstall={installUpdate}
+      />
+
+      {/* Export format dialog */}
+      <Dialog open={exportOpen} onClose={() => setExportOpen(false)} className="max-w-xs">
+        <DialogHeader title="Export Accounts" onClose={() => setExportOpen(false)} />
+        <DialogBody>
+          <p className="text-xs text-shelf-text-subtle mb-4">
+            Choose a format. Passwords will be exported in plain text.
+          </p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => { setExportOpen(false); handleExport() }}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg border border-shelf-border hover:border-shelf-accent hover:bg-shelf-accent/8 text-left transition-colors group"
+            >
+              <FileJson size={18} className="text-shelf-text-subtle group-hover:text-shelf-accent shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-shelf-text">JSON</p>
+                <p className="text-xs text-shelf-text-subtle">Full data, re-importable</p>
+              </div>
+            </button>
+            <button
+              onClick={() => { setExportOpen(false); handleExportCSV() }}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg border border-shelf-border hover:border-shelf-accent hover:bg-shelf-accent/8 text-left transition-colors group"
+            >
+              <Sheet size={18} className="text-shelf-text-subtle group-hover:text-shelf-accent shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-shelf-text">CSV</p>
+                <p className="text-xs text-shelf-text-subtle">For Excel / Google Sheets</p>
+              </div>
+            </button>
+          </div>
+        </DialogBody>
+      </Dialog>
     </aside>
   )
 }

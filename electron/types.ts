@@ -30,6 +30,7 @@ export interface AccountRow {
   created_at: string
   updated_at: string
   last_used_at: string | null
+  archived_at: string | null
 }
 
 /** Raw DB row for tag_rules — enabled stored as 0/1 integer */

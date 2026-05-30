@@ -18,6 +18,7 @@ interface AccountStore {
   accounts: Account[]
   stats: AccountStats
   allTags: string[]
+  tagCounts: Record<string, number>
   isLoading: boolean
   error: string | null
 
@@ -37,9 +38,11 @@ interface AccountStore {
   loadAccounts: () => Promise<void>
   loadStats: () => Promise<void>
   loadTags: () => Promise<void>
+  loadTagCounts: () => Promise<void>
   createAccount: (input: CreateAccountInput) => Promise<Account | null>
   updateAccount: (id: string, input: UpdateAccountInput) => Promise<Account | null>
   deleteAccount: (id: string) => Promise<boolean>
+  touchAccount: (id: string) => Promise<void>
   duplicateAccount: (id: string) => Promise<Account | null>
   bulkDelete: (ids: string[]) => Promise<void>
   bulkUpdateStatus: (ids: string[], status: AccountStatus) => Promise<void>
@@ -89,6 +92,7 @@ interface AccountStore {
 
   // Import/Export
   exportData: () => Promise<{ success: boolean; count?: number }>
+  exportCSV: () => Promise<{ success: boolean; count?: number }>
   importData: () => Promise<{ success: boolean; count?: number }>
 }
 
@@ -109,6 +113,7 @@ export const useAccountStore = create<AccountStore>()(
     accounts: [],
     stats: { total: 0, active: 0, exhausted: 0, 'waiting-reset': 0, dead: 0, archived: 0 },
     allTags: [],
+    tagCounts: {},
     isLoading: false,
     error: null,
     selectedIds: new Set(),
@@ -143,8 +148,19 @@ export const useAccountStore = create<AccountStore>()(
       try {
         const allTags = await api.accounts.getTags()
         set({ allTags })
+        // Always refresh counts alongside tags
+        get().loadTagCounts().catch(console.error)
       } catch (err) {
         console.error('Failed to load tags:', err)
+      }
+    },
+
+    loadTagCounts: async () => {
+      try {
+        const tagCounts = await api.accounts.getTagCounts()
+        set({ tagCounts })
+      } catch (err) {
+        console.error('Failed to load tag counts:', err)
       }
     },
 
@@ -174,6 +190,22 @@ export const useAccountStore = create<AccountStore>()(
         console.error('[store] updateAccount failed:', err)
         set({ error: String(err) })
         return null
+      }
+    },
+
+    // Silent update — only patches last_used_at in DB and local state, no list reload
+    touchAccount: async (id) => {
+      try {
+        const now = new Date().toISOString()
+        await api.accounts.update(id, { last_used_at: now })
+        // Patch only the affected account in local state — no full reload
+        set(state => ({
+          accounts: state.accounts.map(a =>
+            a.id === id ? { ...a, last_used_at: now } : a
+          ),
+        }))
+      } catch (err) {
+        console.error('[store] touchAccount failed:', err)
       }
     },
 
@@ -367,6 +399,16 @@ export const useAccountStore = create<AccountStore>()(
     exportData: async () => {
       try {
         const result = await api.data.export()
+        return result
+      } catch (err) {
+        set({ error: String(err) })
+        return { success: false }
+      }
+    },
+
+    exportCSV: async () => {
+      try {
+        const result = await api.data.exportCSV()
         return result
       } catch (err) {
         set({ error: String(err) })

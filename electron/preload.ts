@@ -33,6 +33,8 @@ const api = {
       ipcRenderer.invoke('accounts:getStats'),
     getTags: () =>
       ipcRenderer.invoke('accounts:getTags'),
+    getTagCounts: () =>
+      ipcRenderer.invoke('accounts:getTagCounts'),
   },
 
   // Tag Rules
@@ -57,6 +59,7 @@ const api = {
   // Import/Export
   data: {
     export: () => ipcRenderer.invoke('data:export'),
+    exportCSV: () => ipcRenderer.invoke('data:exportCSV'),
     import: () => ipcRenderer.invoke('data:import'),
   },
 
@@ -72,6 +75,8 @@ const api = {
     get: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get'),
     updateUpdates: (patch: Partial<AppSettings['updates']>): Promise<AppSettings> =>
       ipcRenderer.invoke('settings:updateUpdates', patch),
+    updateAppearance: (patch: Partial<AppSettings['appearance']>): Promise<AppSettings> =>
+      ipcRenderer.invoke('settings:updateAppearance', patch),
     applyUpdaterSettings: () => ipcRenderer.send('updater:applySettings'),
   },
 
