@@ -77,6 +77,7 @@ function AppContent() {
         <Sidebar
           onOpenTagRules={() => setShowTagRules(true)}
           onOpenSettings={() => setShowSettings(true)}
+          onShowShortcuts={() => setShowShortcuts(true)}
         />
 
         {showSettings ? (
@@ -84,7 +85,7 @@ function AppContent() {
         ) : (
           <>
             <div className="flex flex-col flex-1 overflow-hidden min-w-0">
-              <SearchBar onShowShortcuts={() => setShowShortcuts(true)} />
+              <SearchBar />
               <BulkActionBar />
               <AccountList />
             </div>

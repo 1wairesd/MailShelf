@@ -15,6 +15,7 @@ import {
   ArrowUpCircle,
   FileJson,
   Sheet,
+  Keyboard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
@@ -35,7 +36,7 @@ const STATUS_ITEMS: { status: AccountStatus | 'all'; label: string; icon: React.
   { status: 'archived', label: 'Archived', icon: <Archive size={15} /> },
 ]
 
-export function Sidebar({ onOpenTagRules, onOpenSettings }: { onOpenTagRules: () => void; onOpenSettings: () => void }) {
+export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { onOpenTagRules: () => void; onOpenSettings: () => void; onShowShortcuts: () => void }) {
   const {
     stats,
     filters,
@@ -240,6 +241,14 @@ export function Sidebar({ onOpenTagRules, onOpenSettings }: { onOpenTagRules: ()
         <div className="px-3 pb-3 flex items-center justify-between">
           <span className="text-xs text-shelf-text-subtle tabular-nums">{appVersion}</span>
           <div className="flex items-center gap-0.5">
+            <Tooltip content="Keyboard shortcuts (?)">
+              <button
+                onClick={onShowShortcuts}
+                className="p-1.5 rounded-md text-shelf-text-subtle hover:text-shelf-text hover:bg-shelf-elevated transition-colors"
+              >
+                <Keyboard size={15} />
+              </button>
+            </Tooltip>
             <Tooltip content={
               updateStatus === 'downloaded' ? `v${updateInfo.version} ready — click to install` :
               updateStatus === 'downloading' ? `Downloading… ${updateInfo.percent ?? 0}%` :

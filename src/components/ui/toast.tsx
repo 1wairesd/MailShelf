@@ -72,12 +72,12 @@ function ToastItem({ toast: t }: { toast: Toast }) {
   return (
     <div
       className={cn(
-        'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium',
+        'flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium',
         'border shadow-lg backdrop-blur-sm transition-all duration-300',
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1',
-        t.type === 'success' && 'bg-zinc-900/95 border-green-500/25 text-green-300',
-        t.type === 'error'   && 'bg-zinc-900/95 border-red-500/25 text-red-300',
-        t.type === 'info'    && 'bg-zinc-900/95 border-zinc-700/60 text-zinc-300',
+        t.type === 'success' && 'bg-zinc-900/95 border-green-500/25 text-green-300 toast-success',
+        t.type === 'error'   && 'bg-zinc-900/95 border-red-500/25 text-red-300 toast-error',
+        t.type === 'info'    && 'bg-zinc-900/95 border-zinc-700/60 text-zinc-300 toast-info',
       )}
     >
       {t.type === 'success' && <CheckCircle2 size={12} className="shrink-0" />}

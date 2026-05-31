@@ -142,6 +142,30 @@
   }
 }
 
+/* Tag badge colors — light theme overrides for better contrast */
+html.light .tag-indigo { color: rgb(67 56 202) !important; }
+html.light .tag-purple { color: rgb(126 34 206) !important; }
+html.light .tag-blue   { color: rgb(29 78 216)  !important; }
+html.light .tag-cyan   { color: rgb(14 116 144)  !important; }
+html.light .tag-teal   { color: rgb(15 118 110)  !important; }
+html.light .tag-green  { color: rgb(21 128 61)   !important; }
+html.light .tag-yellow { color: rgb(161 98 7)    !important; }
+html.light .tag-orange { color: rgb(194 65 12)   !important; }
+html.light .tag-pink   { color: rgb(157 23 77)   !important; }
+html.light .tag-rose   { color: rgb(159 18 57)   !important; }
+
+/* Status badge colors — light theme overrides for better contrast */
+html.light .status-active        { color: rgb(21 128 61)   !important; }
+html.light .status-exhausted     { color: rgb(194 65 12)   !important; }
+html.light .status-waiting-reset { color: rgb(161 98 7)    !important; }
+html.light .status-dead          { color: rgb(185 28 28)   !important; }
+html.light .status-archived      { color: rgb(82 82 91)    !important; }
+
+/* Toast colors — light theme overrides */
+html.light .toast-success { background: rgba(255 255 255 / 0.97) !important; border-color: rgb(21 128 61 / 0.3) !important; color: rgb(21 128 61) !important; }
+html.light .toast-error   { background: rgba(255 255 255 / 0.97) !important; border-color: rgb(185 28 28 / 0.3) !important; color: rgb(185 28 28) !important; }
+html.light .toast-info    { background: rgba(255 255 255 / 0.97) !important; border-color: rgb(113 113 122 / 0.4) !important; color: rgb(63 63 70)  !important; }
+
 /* Electron drag regions — outside @layer to prevent purging */
 .drag-region {
   -webkit-app-region: drag;

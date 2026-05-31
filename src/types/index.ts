@@ -26,31 +26,31 @@ export const STATUS_CONFIG: Record<import('@shared/types').AccountStatus, {
 }> = {
   active: {
     label: 'Active',
-    color: 'text-green-400',
+    color: 'text-green-400 status-active',
     bgColor: 'bg-green-400/10',
     dotColor: 'bg-green-400',
   },
   exhausted: {
     label: 'Exhausted',
-    color: 'text-orange-400',
+    color: 'text-orange-400 status-exhausted',
     bgColor: 'bg-orange-400/10',
     dotColor: 'bg-orange-400',
   },
   'waiting-reset': {
     label: 'Waiting Reset',
-    color: 'text-yellow-400',
+    color: 'text-yellow-400 status-waiting-reset',
     bgColor: 'bg-yellow-400/10',
     dotColor: 'bg-yellow-400',
   },
   dead: {
     label: 'Dead',
-    color: 'text-red-400',
+    color: 'text-red-400 status-dead',
     bgColor: 'bg-red-400/10',
     dotColor: 'bg-red-400',
   },
   archived: {
     label: 'Archived',
-    color: 'text-zinc-500',
+    color: 'text-zinc-500 status-archived',
     bgColor: 'bg-zinc-500/10',
     dotColor: 'bg-zinc-500',
   },

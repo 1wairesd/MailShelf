@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
-import { Search, X, SlidersHorizontal, Plus, Keyboard } from 'lucide-react'
+import { Search, X, SlidersHorizontal, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
 import { Select } from './ui/select'
@@ -20,7 +20,7 @@ const PROVIDER_FILTER_OPTIONS = [
   ...PROVIDER_OPTIONS,
 ]
 
-export function SearchBar({ onShowShortcuts }: { onShowShortcuts: () => void }) {
+export function SearchBar() {
   const {
     searchQuery, setSearch,
     filters, setSortBy, setSortOrder,
@@ -128,12 +128,6 @@ export function SearchBar({ onShowShortcuts }: { onShowShortcuts: () => void }) 
 
         {/* Right: actions */}
         <div className="flex items-center gap-1.5">
-          <Tooltip content="Keyboard shortcuts (?)">
-            <Button variant="ghost" size="icon-sm" onClick={onShowShortcuts}>
-              <Keyboard size={14} />
-            </Button>
-          </Tooltip>
-
           <Button
             variant="default"
             size="sm"
