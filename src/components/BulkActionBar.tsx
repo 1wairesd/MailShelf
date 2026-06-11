@@ -19,6 +19,20 @@ export function BulkActionBar() {
   const { toast } = useToast()
   const count = selectedIds.size
 
+  // All hooks must be called before any early return
+  const selectedAccounts = React.useMemo(
+    () => accounts.filter(a => selectedIds.has(a.id)),
+    [accounts, selectedIds]
+  )
+  const tagState = React.useCallback((tag: string): 'all' | 'some' | 'none' => {
+    const withTag = selectedAccounts.filter(a => a.tags.includes(tag)).length
+    if (withTag === 0) return 'none'
+    if (withTag === selectedAccounts.length) return 'all'
+    return 'some'
+  }, [selectedAccounts])
+
+  console.log(`[BulkActionBar] render, count=${count}`)
+
   if (count === 0) return null
 
   const handleBulkDelete = () => {
@@ -51,18 +65,6 @@ export function BulkActionBar() {
     await bulkUpdateTag(ids, tag, 'remove')
     toast(`Removed tag "${tag}" from ${ids.length} account${ids.length !== 1 ? 's' : ''}`, 'info')
   }
-
-  // Compute tag state across selected accounts — memoized
-  const selectedAccounts = React.useMemo(
-    () => accounts.filter(a => selectedIds.has(a.id)),
-    [accounts, selectedIds]
-  )
-  const tagState = React.useCallback((tag: string): 'all' | 'some' | 'none' => {
-    const withTag = selectedAccounts.filter(a => a.tags.includes(tag)).length
-    if (withTag === 0) return 'none'
-    if (withTag === selectedAccounts.length) return 'all'
-    return 'some'
-  }, [selectedAccounts])
 
   return (
     <div className={cn(
@@ -203,14 +205,13 @@ function TagBulkMenu({ allTags, tagState, onAdd, onRemove }: TagBulkMenuProps) {
         position: 'fixed',
         zIndex: 9999,
         ...(rect ? {
-          left: rect.right - 260, // right-align to trigger
+          left: rect.right - 260,
           top: rect.bottom + 4,
           width: 260,
         } : { display: 'none' }),
       }}
     >
       <div className="rounded-md border border-shelf-border bg-shelf-surface shadow-lg overflow-hidden">
-        {/* Search / create input */}
         <div className="p-2 border-b border-shelf-border">
           <input
             ref={searchRef}
@@ -232,7 +233,6 @@ function TagBulkMenu({ allTags, tagState, onAdd, onRemove }: TagBulkMenuProps) {
           />
         </div>
 
-        {/* Tag list */}
         <div className="max-h-52 overflow-y-auto py-1">
           {filtered.length === 0 && !canCreate && (
             <p className="px-3 py-2 text-xs text-shelf-text-subtle">No tags yet</p>
@@ -245,18 +245,13 @@ function TagBulkMenu({ allTags, tagState, onAdd, onRemove }: TagBulkMenuProps) {
                 key={tag}
                 className="flex items-center gap-2 px-3 py-1.5 hover:bg-shelf-elevated group"
               >
-                {/* Tag badge */}
                 <div className="flex-1 min-w-0">
                   <TagBadge tag={tag} size="sm" />
                 </div>
-
-                {/* State indicator + action buttons */}
                 <div className="flex items-center gap-1 shrink-0">
                   {state === 'some' && (
                     <span className="text-[10px] text-shelf-text-subtle mr-1">some</span>
                   )}
-
-                  {/* Add button — shown when not all have it */}
                   {state !== 'all' && (
                     <button
                       onMouseDown={e => { e.preventDefault(); onAdd(tag) }}
@@ -266,8 +261,6 @@ function TagBulkMenu({ allTags, tagState, onAdd, onRemove }: TagBulkMenuProps) {
                       <Plus size={12} />
                     </button>
                   )}
-
-                  {/* Remove button — shown when at least some have it */}
                   {state !== 'none' && (
                     <button
                       onMouseDown={e => { e.preventDefault(); onRemove(tag) }}
@@ -282,7 +275,6 @@ function TagBulkMenu({ allTags, tagState, onAdd, onRemove }: TagBulkMenuProps) {
             )
           })}
 
-          {/* Create new tag option */}
           {canCreate && (
             <button
               onMouseDown={e => { e.preventDefault(); handleCreate() }}

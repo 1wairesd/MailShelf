@@ -32,7 +32,6 @@ function initAutoUpdater() {
   autoUpdater.allowPrerelease = channel === 'beta'
 
   autoUpdater.on('update-available', (info) => {
-    console.log('[Updater] Update available:', info.version)
     mainWindow?.webContents.send('updater:update-available', {
       version: info.version,
       releaseNotes: info.releaseNotes,
@@ -40,7 +39,6 @@ function initAutoUpdater() {
   })
 
   autoUpdater.on('update-not-available', () => {
-    console.log('[Updater] App is up to date')
     mainWindow?.webContents.send('updater:update-not-available')
   })
 
@@ -54,7 +52,6 @@ function initAutoUpdater() {
   })
 
   autoUpdater.on('update-downloaded', (info) => {
-    console.log('[Updater] Update downloaded:', info.version)
     mainWindow?.webContents.send('updater:update-downloaded', { version: info.version })
   })
 
@@ -131,7 +128,20 @@ function createWindow() {
     icon: path.join(__dirname, '../../resources/icon.ico'),
   })
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show()
+    if (isDev) {
+      mainWindow?.webContents.openDevTools({ mode: 'detach' })
+    }
+  })
+
+  // Forward renderer console.log/warn/error to main process terminal
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    const prefix = sourceId ? `[renderer ${sourceId.split('/').pop()}:${line}]` : '[renderer]'
+    if (level === 2) console.warn(prefix, message)
+    else if (level === 3) console.error(prefix, message)
+    else console.log(prefix, message)
+  })
 
   // Block navigation away from the app
   mainWindow.webContents.on('will-navigate', (event, url) => {
@@ -192,11 +202,9 @@ function createWindow() {
 function initDatabase() {
   try {
     const userDataPath = app.getPath('userData')
-    console.log('[MailShelf] userData path:', userDataPath)
     initSettings(userDataPath)
     initCrypto(userDataPath)
     db = new DatabaseService(userDataPath)
-    console.log('[MailShelf] Database initialized OK')
   } catch (err) {
     console.error('[MailShelf] FATAL: Database init failed:', err)
   }

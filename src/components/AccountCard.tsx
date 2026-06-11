@@ -25,7 +25,18 @@ const STATUS_ITEMS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
 }))
 
 export const AccountCard = React.memo(function AccountCard({ account, isSelected, isActive, onSelect, onClick }: AccountCardProps) {
-  const { openEditForm, deleteAccount, duplicateAccount, updateAccount, touchAccount, showConfirm, allTags } = useAccountStore()
+  // allTags is the only reactive value we need — get actions via getState() so they
+  // never trigger re-renders (Zustand action references are stable but reading them
+  // through the hook still subscribes this component to the whole store)
+  const allTags = useAccountStore(s => s.allTags)
+  const {
+    openEditForm,
+    deleteAccount,
+    duplicateAccount,
+    updateAccount,
+    touchAccount,
+    showConfirm,
+  } = useAccountStore.getState()
   const { toast } = useToast()
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [copiedPass, setCopiedPass] = useState(false)

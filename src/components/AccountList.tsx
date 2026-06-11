@@ -1,18 +1,13 @@
-import { useRef } from 'react'
+import React, { useRef, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useAccountStore } from '@/store/accountStore'
 import { AccountCard } from './AccountCard'
 import { Loader2, Inbox } from 'lucide-react'
+import { Account } from '@/types'
 
 export function AccountList() {
-  const {
-    accounts,
-    isLoading,
-    selectedIds,
-    activeAccountId,
-    toggleSelect,
-    setActiveAccount,
-  } = useAccountStore()
+  const accounts  = useAccountStore(s => s.accounts)
+  const isLoading = useAccountStore(s => s.isLoading)
 
   const parentRef = useRef<HTMLDivElement>(null)
 
@@ -75,18 +70,7 @@ export function AccountList() {
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
-              <AccountCard
-                account={account}
-                isSelected={selectedIds.has(account.id)}
-                isActive={activeAccountId === account.id}
-                onSelect={e => {
-                  e.stopPropagation()
-                  toggleSelect(account.id)
-                }}
-                onClick={() => setActiveAccount(
-                  activeAccountId === account.id ? null : account.id
-                )}
-              />
+              <AccountCardRow account={account} />
             </div>
           )
         })}
@@ -94,3 +78,31 @@ export function AccountList() {
     </div>
   )
 }
+
+// Separate component so each row subscribes only to its own selection state
+const AccountCardRow = React.memo(function AccountCardRow({ account }: { account: Account }) {
+  const isSelected       = useAccountStore(s => s.selectedIds.has(account.id))
+  const isActive         = useAccountStore(s => s.activeAccountId === account.id)
+  const toggleSelect     = useAccountStore(s => s.toggleSelect)
+  const setActiveAccount = useAccountStore(s => s.setActiveAccount)
+
+  const handleSelect = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    toggleSelect(account.id)
+  }, [account.id, toggleSelect])
+
+  const handleClick = useCallback(() => {
+    const cur = useAccountStore.getState().activeAccountId
+    setActiveAccount(cur === account.id ? null : account.id)
+  }, [account.id, setActiveAccount])
+
+  return (
+    <AccountCard
+      account={account}
+      isSelected={isSelected}
+      isActive={isActive}
+      onSelect={handleSelect}
+      onClick={handleClick}
+    />
+  )
+})
