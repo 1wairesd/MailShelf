@@ -21,6 +21,7 @@ import {
   Plus,
   Pencil,
   Trash2,
+  ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
@@ -74,6 +75,8 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
   const [exportOpen, setExportOpen] = React.useState(false)
   const [groupModalOpen, setGroupModalOpen] = React.useState(false)
   const [editingGroup, setEditingGroup] = React.useState<import('@/types').Group | null>(null)
+  const [groupsCollapsed, setGroupsCollapsed] = React.useState(false)
+  const [tagsCollapsed, setTagsCollapsed] = React.useState(false)
 
   const hasUpdate = updateStatus === 'downloaded' || updateStatus === 'available' || updateStatus === 'downloading'
 
@@ -215,9 +218,16 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
       {/* Groups */}
       <div className="px-3 py-1 mt-1">
         <div className="flex items-center justify-between px-2 mb-1">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle">
+          <button
+            onClick={() => setGroupsCollapsed(v => !v)}
+            className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle hover:text-shelf-text-muted transition-colors"
+          >
+            <ChevronDown
+              size={11}
+              className={cn('transition-transform duration-150', groupsCollapsed && '-rotate-90')}
+            />
             Groups
-          </p>
+          </button>
           <Tooltip content="New group">
             <button
               onClick={handleOpenCreateGroup}
@@ -227,6 +237,7 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
             </button>
           </Tooltip>
         </div>
+        {!groupsCollapsed && (
         <div className="flex flex-col gap-0.5">
           {groups.length === 0 && (
             <button
@@ -317,14 +328,23 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
             )
           })}
         </div>
+        )} {/* end !groupsCollapsed */}
       </div>
 
       {/* Tags */}
       {allTags.length > 0 && (
         <div className="px-3 py-2 mt-1">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle px-2 mb-1">
+          <button
+            onClick={() => setTagsCollapsed(v => !v)}
+            className="flex items-center gap-1 px-2 mb-1 text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle hover:text-shelf-text-muted transition-colors w-full text-left"
+          >
+            <ChevronDown
+              size={11}
+              className={cn('transition-transform duration-150', tagsCollapsed && '-rotate-90')}
+            />
             Tags
-          </p>
+          </button>
+          {!tagsCollapsed && (
           <div className="flex flex-col gap-0.5">
             {allTags.map(tag => {
               const isActive = activeTagFilters.includes(tag)
@@ -354,6 +374,7 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
               )
             })}
           </div>
+          )} {/* end !tagsCollapsed */}
 
         </div>
       )}
