@@ -8,6 +8,7 @@ import { registerDataIpc } from './ipc/data'
 import { registerAppIpc } from './ipc/app'
 import { registerTagRulesIpc } from './ipc/tagRules'
 import { registerSettingsIpc } from './ipc/settings'
+import { registerGroupsIpc } from './ipc/groups'
 import { startScheduler, stopScheduler } from './scheduler'
 import { initSettings, getSettings } from './settings'
 
@@ -228,6 +229,7 @@ function registerIpc() {
   registerAppIpc()
   registerTagRulesIpc(() => db)
   registerSettingsIpc()
+  registerGroupsIpc(() => db)
 
   // Updater controls
   ipcMain.handle('updater:check', () =>

@@ -15,6 +15,7 @@ import { ToastProvider, useToast } from './components/ui/toast'
 import { useAccountStore } from './store/accountStore'
 import { useTagRulesStore } from './store/tagRulesStore'
 import { useSettingsStore } from './store/settingsStore'
+import { useGroupsStore } from './store/groupsStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { api } from './lib/api'
 
@@ -22,6 +23,7 @@ function AppContent() {
   const { loadAccounts, loadStats, loadTags, activeAccountId } = useAccountStore()
   const { setLastRunResults } = useTagRulesStore()
   const { loadSettings } = useSettingsStore()
+  const { loadGroups, loadGroupCounts } = useGroupsStore()
   const { toast } = useToast()
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showTagRules, setShowTagRules] = useState(false)
@@ -58,6 +60,8 @@ function AppContent() {
     loadAccounts()
     loadStats()
     loadTags()
+    loadGroups()
+    loadGroupCounts()
     const unsub = api.tagRules.onApplied(({ results, totalAffected }) => {
       setLastRunResults(results)
       loadAccounts()

@@ -35,6 +35,7 @@ export function validateFilters(filters: unknown): AccountFilters {
     status: VALID_STATUSES.includes(f.status as AccountStatus) ? f.status as AccountStatus : 'all' as const,
     provider: typeof f.provider === 'string' ? f.provider.slice(0, 50) : '',
     tags: Array.isArray(f.tags) ? (f.tags as string[]).filter(t => typeof t === 'string').slice(0, 20) : [],
+    groupId: typeof f.groupId === 'string' ? f.groupId : null,
     sortBy: VALID_SORT_FIELDS.includes(f.sortBy as string) ? f.sortBy as 'created_at' : 'created_at',
     sortOrder: VALID_SORT_ORDERS.includes(f.sortOrder as string) ? f.sortOrder as 'asc' | 'desc' : 'desc',
   }

@@ -53,6 +53,7 @@ interface AccountStore {
   setStatusFilter: (status: AccountStatus | 'all') => void
   setProviderFilter: (provider: string) => void
   setTagFilter: (tags: string[]) => void
+  setGroupFilter: (groupId: string | null) => void
   setSortBy: (field: SortField) => void
   setSortOrder: (order: SortOrder) => void
   resetFilters: () => void
@@ -62,6 +63,9 @@ interface AccountStore {
   deselectAccount: (id: string) => void
   toggleSelect: (id: string) => void
   selectAll: () => void
+  selectByTag: (tag: string) => void
+  selectByStatus: (status: AccountStatus) => void
+  selectByProvider: (provider: string) => void
   clearSelection: () => void
   setActiveAccount: (id: string | null) => void
 
@@ -167,6 +171,15 @@ export const useAccountStore = create<AccountStore>()(
     createAccount: async (input) => {
       try {
         const account = await api.accounts.create(input)
+        // If currently filtering by a group, auto-add the new account to it
+        const activeGroupId = get().filters.groupId
+        if (activeGroupId && account?.id) {
+          try {
+            await api.groups.addAccounts(activeGroupId, [account.id])
+          } catch (e) {
+            console.warn('[store] auto-add to group failed:', e)
+          }
+        }
         // Reload independently — don't let reload failure break create
         get().loadAccounts().catch(e => console.error('[store] loadAccounts after create failed:', e))
         get().loadStats().catch(e => console.error('[store] loadStats after create failed:', e))
@@ -311,6 +324,11 @@ export const useAccountStore = create<AccountStore>()(
       get().loadAccounts()
     },
 
+    setGroupFilter: (groupId) => {
+      set(state => ({ filters: { ...state.filters, groupId } }))
+      get().loadAccounts()
+    },
+
     setSortBy: (sortBy) => {
       set(state => ({ filters: { ...state.filters, sortBy } }))
       get().loadAccounts()
@@ -354,6 +372,27 @@ export const useAccountStore = create<AccountStore>()(
     selectAll: () => {
       const { accounts } = get()
       set({ selectedIds: new Set(accounts.map(a => a.id)) })
+    },
+
+    selectByTag: (tag) => {
+      const { accounts, selectedIds } = get()
+      const matching = accounts.filter(a => a.tags.includes(tag)).map(a => a.id)
+      const merged = new Set([...selectedIds, ...matching])
+      set({ selectedIds: merged })
+    },
+
+    selectByStatus: (status) => {
+      const { accounts, selectedIds } = get()
+      const matching = accounts.filter(a => a.status === status).map(a => a.id)
+      const merged = new Set([...selectedIds, ...matching])
+      set({ selectedIds: merged })
+    },
+
+    selectByProvider: (provider) => {
+      const { accounts, selectedIds } = get()
+      const matching = accounts.filter(a => a.provider === provider).map(a => a.id)
+      const merged = new Set([...selectedIds, ...matching])
+      set({ selectedIds: merged })
     },
 
     clearSelection: () => {

@@ -1,5 +1,5 @@
 import { Account, AccountFilters, AccountStats, CreateAccountInput, ImportExportResult, UpdateAccountInput } from '../types'
-import type { TagRule, CreateTagRuleInput, UpdateTagRuleInput, TagRuleRunResult } from '../../shared/types'
+import type { TagRule, CreateTagRuleInput, UpdateTagRuleInput, TagRuleRunResult, Group, CreateGroupInput, UpdateGroupInput } from '../../shared/types'
 
 // ─── AppSettings (mirrored from electron/settings.ts) ────────────────────────
 export interface AppSettings {
@@ -49,6 +49,17 @@ declare global {
         export: () => Promise<ImportExportResult>
         exportCSV: () => Promise<ImportExportResult>
         import: () => Promise<ImportExportResult>
+      }
+      groups: {
+        getAll: () => Promise<Group[]>
+        getCounts: () => Promise<Record<string, number>>
+        create: (input: CreateGroupInput) => Promise<Group>
+        update: (id: string, input: UpdateGroupInput) => Promise<Group | null>
+        delete: (id: string) => Promise<boolean>
+        addAccounts: (groupId: string, accountIds: string[]) => Promise<number>
+        removeAccounts: (groupId: string, accountIds: string[]) => Promise<number>
+        moveAccounts: (groupId: string | null, accountIds: string[]) => Promise<number>
+        getAccountGroups: (accountId: string) => Promise<string[]>
       }
       app: {
         checkForUpdates: () => Promise<{
@@ -132,6 +143,17 @@ export const api = {
     export: () => getApi().data.export(),
     exportCSV: () => getApi().data.exportCSV(),
     import: () => getApi().data.import(),
+  },
+  groups: {
+    getAll: () => getApi().groups.getAll(),
+    getCounts: () => getApi().groups.getCounts(),
+    create: (input: CreateGroupInput) => getApi().groups.create(input),
+    update: (id: string, input: UpdateGroupInput) => getApi().groups.update(id, input),
+    delete: (id: string) => getApi().groups.delete(id),
+    addAccounts: (groupId: string, accountIds: string[]) => getApi().groups.addAccounts(groupId, accountIds),
+    removeAccounts: (groupId: string, accountIds: string[]) => getApi().groups.removeAccounts(groupId, accountIds),
+    moveAccounts: (groupId: string | null, accountIds: string[]) => getApi().groups.moveAccounts(groupId, accountIds),
+    getAccountGroups: (accountId: string) => getApi().groups.getAccountGroups(accountId),
   },
   app: {
     checkForUpdates: () => getApi().app.checkForUpdates(),

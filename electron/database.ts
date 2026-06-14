@@ -14,6 +14,10 @@ import {
   CreateTagRuleInput,
   UpdateTagRuleInput,
   TagRuleRunResult,
+  Group,
+  GroupRow,
+  CreateGroupInput,
+  UpdateGroupInput,
 } from './types'
 
 export class DatabaseService {
@@ -88,6 +92,23 @@ export class DatabaseService {
         updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
         last_run_at   TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS groups (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        color      TEXT NOT NULL DEFAULT '#6366f1',
+        position   INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS account_groups (
+        account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        group_id   TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        PRIMARY KEY (account_id, group_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_account_groups_group ON account_groups(group_id);
     `)
 
     // Migrations for existing databases
@@ -117,6 +138,7 @@ export class DatabaseService {
       status,
       provider,
       tags,
+      groupId,
       sortBy = 'created_at',
       sortOrder = 'desc',
     } = filters
@@ -136,6 +158,10 @@ export class DatabaseService {
     if (provider && provider !== '') {
       conditions.push('a.provider = ?')
       params.push(provider)
+    }
+    if (groupId) {
+      conditions.push('a.id IN (SELECT account_id FROM account_groups WHERE group_id = ?)')
+      params.push(groupId)
     }
 
     let rows: AccountRow[]
@@ -624,6 +650,131 @@ export class DatabaseService {
 
   close() {
     this.db.close()
+  }
+
+  // ─── Groups ─────────────────────────────────────────────────────────────────
+
+  private rowToGroup(row: GroupRow): Group {
+    return { ...row }
+  }
+
+  getGroups(): Group[] {
+    const rows = this.db.prepare(
+      'SELECT * FROM groups ORDER BY position ASC, created_at ASC'
+    ).all() as GroupRow[]
+    return rows.map(r => this.rowToGroup(r))
+  }
+
+  getGroupById(id: string): Group | null {
+    const row = this.db.prepare('SELECT * FROM groups WHERE id = ?').get(id) as GroupRow | undefined
+    return row ? this.rowToGroup(row) : null
+  }
+
+  createGroup(input: CreateGroupInput): Group {
+    const id = uuidv4()
+    const now = new Date().toISOString()
+    // Position defaults to max + 1
+    const maxPos = (this.db.prepare('SELECT COALESCE(MAX(position), -1) as m FROM groups').get() as { m: number }).m
+    this.db.prepare(`
+      INSERT INTO groups (id, name, color, position, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      input.name,
+      input.color ?? '#6366f1',
+      input.position ?? maxPos + 1,
+      now,
+      now,
+    )
+    return this.getGroupById(id)!
+  }
+
+  updateGroup(id: string, input: UpdateGroupInput): Group | null {
+    const existing = this.getGroupById(id)
+    if (!existing) return null
+    const now = new Date().toISOString()
+    this.db.prepare(`
+      UPDATE groups SET name = ?, color = ?, position = ?, updated_at = ? WHERE id = ?
+    `).run(
+      input.name ?? existing.name,
+      input.color ?? existing.color,
+      input.position ?? existing.position,
+      now,
+      id,
+    )
+    return this.getGroupById(id)
+  }
+
+  deleteGroup(id: string): boolean {
+    return this.db.prepare('DELETE FROM groups WHERE id = ?').run(id).changes > 0
+  }
+
+  getGroupCounts(): Record<string, number> {
+    const rows = this.db.prepare(
+      'SELECT group_id, COUNT(*) as count FROM account_groups GROUP BY group_id'
+    ).all() as { group_id: string; count: number }[]
+    const result: Record<string, number> = {}
+    for (const row of rows) {
+      result[row.group_id] = row.count
+    }
+    return result
+  }
+
+  /** Returns group IDs the account belongs to */
+  getAccountGroups(accountId: string): string[] {
+    const rows = this.db.prepare(
+      'SELECT group_id FROM account_groups WHERE account_id = ?'
+    ).all(accountId) as { group_id: string }[]
+    return rows.map(r => r.group_id)
+  }
+
+  addAccountsToGroup(groupId: string, accountIds: string[]): number {
+    const insert = this.db.transaction((groupId: string, ids: string[]) => {
+      const stmt = this.db.prepare(
+        'INSERT OR IGNORE INTO account_groups (account_id, group_id) VALUES (?, ?)'
+      )
+      let count = 0
+      for (const id of ids) {
+        count += stmt.run(id, groupId).changes
+      }
+      return count
+    })
+    return insert(groupId, accountIds)
+  }
+
+  removeAccountsFromGroup(groupId: string, accountIds: string[]): number {
+    const del = this.db.transaction((groupId: string, ids: string[]) => {
+      const stmt = this.db.prepare(
+        'DELETE FROM account_groups WHERE account_id = ? AND group_id = ?'
+      )
+      let count = 0
+      for (const id of ids) {
+        count += stmt.run(id, groupId).changes
+      }
+      return count
+    })
+    return del(groupId, accountIds)
+  }
+
+  /** Move accounts: remove from all groups, add to target group (or just ungrouped if null) */
+  moveAccountsToGroup(groupId: string | null, accountIds: string[]): number {
+    const move = this.db.transaction((groupId: string | null, ids: string[]) => {
+      // Remove from all groups first
+      const delStmt = this.db.prepare('DELETE FROM account_groups WHERE account_id = ?')
+      for (const id of ids) delStmt.run(id)
+
+      if (!groupId) return ids.length
+
+      const addStmt = this.db.prepare(
+        'INSERT OR IGNORE INTO account_groups (account_id, group_id) VALUES (?, ?)'
+      )
+      let count = 0
+      for (const id of ids) {
+        count += addStmt.run(id, groupId).changes
+      }
+      return count
+    })
+    return move(groupId, accountIds)
   }
 }
 

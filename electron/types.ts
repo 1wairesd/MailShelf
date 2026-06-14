@@ -13,6 +13,9 @@ export type {
   CreateTagRuleInput,
   UpdateTagRuleInput,
   TagRuleRunResult,
+  Group,
+  CreateGroupInput,
+  UpdateGroupInput,
 } from '../shared/types'
 
 /**
@@ -45,4 +48,20 @@ export interface TagRuleRow {
   created_at: string
   updated_at: string
   last_run_at: string | null
+}
+
+/** Raw DB row for groups */
+export interface GroupRow {
+  id: string
+  name: string
+  color: string
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+/** Raw DB row for account_groups join table */
+export interface AccountGroupRow {
+  account_id: string
+  group_id: string
 }

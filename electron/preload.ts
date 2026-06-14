@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { AccountFilters, CreateAccountInput, UpdateAccountInput, CreateTagRuleInput, UpdateTagRuleInput } from './types'
+import { AccountFilters, CreateAccountInput, UpdateAccountInput, CreateTagRuleInput, UpdateTagRuleInput, CreateGroupInput, UpdateGroupInput } from './types'
 import type { AppSettings } from './settings'
 
 const api = {
@@ -38,8 +38,7 @@ const api = {
   },
 
   // Tag Rules
-  tagRules: {
-    getAll: () =>
+  tagRules: {    getAll: () =>
       ipcRenderer.invoke('tagRules:getAll'),
     create: (input: CreateTagRuleInput) =>
       ipcRenderer.invoke('tagRules:create', input),
@@ -61,6 +60,19 @@ const api = {
     export: () => ipcRenderer.invoke('data:export'),
     exportCSV: () => ipcRenderer.invoke('data:exportCSV'),
     import: () => ipcRenderer.invoke('data:import'),
+  },
+
+  // Groups / Folders
+  groups: {
+    getAll: () => ipcRenderer.invoke('groups:getAll'),
+    getCounts: () => ipcRenderer.invoke('groups:getCounts'),
+    create: (input: CreateGroupInput) => ipcRenderer.invoke('groups:create', input),
+    update: (id: string, input: UpdateGroupInput) => ipcRenderer.invoke('groups:update', id, input),
+    delete: (id: string) => ipcRenderer.invoke('groups:delete', id),
+    addAccounts: (groupId: string, accountIds: string[]) => ipcRenderer.invoke('groups:addAccounts', groupId, accountIds),
+    removeAccounts: (groupId: string, accountIds: string[]) => ipcRenderer.invoke('groups:removeAccounts', groupId, accountIds),
+    moveAccounts: (groupId: string | null, accountIds: string[]) => ipcRenderer.invoke('groups:moveAccounts', groupId, accountIds),
+    getAccountGroups: (accountId: string) => ipcRenderer.invoke('groups:getAccountGroups', accountId),
   },
 
   // App

@@ -26,19 +26,38 @@ Everything stays on your machine. No cloud, no sync, no telemetry.
 
 - **Fast search** — full-text search across email, notes, and tags (SQLite FTS5)
 - **Status tracking** — Active, Exhausted, Waiting Reset, Dead, Archived
+- **Groups / Folders** — organize accounts into named folders with color coding; filter the list by group from the sidebar
+- **Drag & drop into groups** — grab the handle (⠿) on any card and drop it onto a group in the sidebar to move it instantly
+- **Auto-group on create** — if a group is selected in the sidebar, new accounts are automatically added to it
 - **Smart tags** — autocomplete from existing tags, create new ones inline, filter by tag in sidebar
-- **Inline tag editing** — add or remove tags directly from the account card or detail panel without opening the form
+- **Inline tag editing** — add or remove tags directly from the account card without opening the form
 - **Bulk tag management** — select multiple accounts and add/remove tags across all of them at once
 - **Tag Rules** — automatically change account status on a schedule based on tags (after N days, on a specific day of the month, or on a specific weekday); catch-up logic fires missed rules immediately on next startup
 - **One-click copy** — copy email or password instantly
 - **Quick status change** — click the status badge on any card to change it
-- **Bulk actions** — select multiple accounts, change status, manage tags, or delete with confirmation
+- **Smart bulk actions** — select multiple accounts using "Select by tag / status / provider", then change status, manage tags, move to group, or delete with confirmation
 - **Confirmation dialogs** — all destructive actions require confirmation
-- **Import / Export JSON** — portable backup format
+- **Import / Export JSON / CSV** — portable backup formats
 - **Keyboard shortcuts** — full keyboard navigation, press `?` to see all
 - **Encrypted storage** — passwords encrypted with AES-256-GCM, key protected by OS keychain (DPAPI / Keychain / libsecret)
 - **Virtualized list** — handles thousands of accounts without lag
 - **Update checker** — checks GitHub Releases on startup and notifies when a new version is available; downloads and installs updates in the background with your confirmation
+
+## Groups / Folders
+
+Groups are first-class entities stored separately from tags. Each group has a name and a color.
+
+**How to use:**
+
+| Action | How |
+|--------|-----|
+| Create a group | Click **+** next to "Groups" in the sidebar |
+| Filter by group | Click the group name in the sidebar |
+| Move account (drag) | Grab the ⠿ handle on the card, drop onto a group in the sidebar |
+| Move account (bulk) | Select accounts → **Group** button in the bulk action bar |
+| Auto-assign on create | Select a group first — new accounts are added to it automatically |
+| Rename / recolor | Hover the group → pencil icon |
+| Delete group | Hover the group → trash icon → confirm (accounts are ungrouped, not deleted) |
 
 ## Tag Rules
 

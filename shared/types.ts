@@ -54,8 +54,32 @@ export interface AccountFilters {
   status?: AccountStatus | 'all'
   provider?: string
   tags?: string[]
+  groupId?: string | null
   sortBy?: SortField
   sortOrder?: SortOrder
+}
+
+// ─── Groups / Folders ─────────────────────────────────────────────────────────
+
+export interface Group {
+  id: string
+  name: string
+  color: string
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateGroupInput {
+  name: string
+  color?: string
+  position?: number
+}
+
+export interface UpdateGroupInput {
+  name?: string
+  color?: string
+  position?: number
 }
 
 export interface AccountStats {

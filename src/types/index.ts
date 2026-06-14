@@ -8,6 +8,9 @@ export type {
   UpdateAccountInput,
   AccountFilters,
   AccountStats,
+  Group,
+  CreateGroupInput,
+  UpdateGroupInput,
 } from '@shared/types'
 
 // ─── Frontend-only types ─────────────────────────────────────────────────────

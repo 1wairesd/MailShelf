@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Copy, Check, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, Clock, Copy as CopyIcon, Plus } from 'lucide-react'
+import { Copy, Check, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, Clock, Copy as CopyIcon, Plus, GripVertical } from 'lucide-react'
 import { cn, copyToClipboard, formatDate } from '@/lib/utils'
 import { Account, AccountStatus, STATUS_CONFIG } from '@/types'
 import { useAccountStore } from '@/store/accountStore'
+import { useDragStore } from '@/store/dragStore'
 import { StatusBadge } from './StatusBadge'
 import { TagBadge } from './TagBadge'
 import { TagInput } from './TagInput'
@@ -37,11 +38,13 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
     touchAccount,
     showConfirm,
   } = useAccountStore.getState()
+  const { setDraggingAccountId } = useDragStore.getState()
   const { toast } = useToast()
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [copiedPass, setCopiedPass] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [addingTag, setAddingTag] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const tagInputRef = useRef<HTMLDivElement>(null)
 
   const handleCopyEmail = async (e: React.MouseEvent) => {
@@ -120,11 +123,13 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
         isActive
           ? 'bg-shelf-accent/8 border-l-shelf-accent'
           : 'border-l-transparent hover:bg-shelf-elevated/50',
-        isSelected && !isActive && 'bg-shelf-elevated/30'
+        isSelected && !isActive && 'bg-shelf-elevated/30',
+        isDragging && 'opacity-40'
       )}
     >
       {/* Top row */}
       <div className="flex items-start gap-3">
+
         {/* Checkbox */}
         <div
           onClick={onSelect}
@@ -234,38 +239,64 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
       </div>
 
       {/* Tags + quick-add */}
-      <div
-        ref={tagInputRef}
-        className="flex flex-wrap gap-1 pl-7 items-center"
-      >
-        {account.tags.map(tag => (
-          <TagBadge key={tag} tag={tag} size="sm" />
-        ))}
+      <div className="flex items-center gap-3">
+        {/* Drag handle — aligned under checkbox, same column */}
+        <div
+          draggable
+          onDragStart={e => {
+            e.dataTransfer.effectAllowed = 'move'
+            e.dataTransfer.setData('text/plain', account.id)
+            setIsDragging(true)
+            setDraggingAccountId(account.id)
+          }}
+          onDragEnd={() => {
+            setIsDragging(false)
+            setDraggingAccountId(null)
+          }}
+          onClick={e => e.stopPropagation()}
+          className={cn(
+            'w-4 shrink-0 flex items-center justify-center',
+            'cursor-grab active:cursor-grabbing text-shelf-text-subtle',
+            'opacity-0 group-hover:opacity-100 transition-opacity hover:text-shelf-text-muted',
+          )}
+          title="Drag to move to a group"
+        >
+          <GripVertical size={15} />
+        </div>
 
-        {addingTag ? (
-          <div className="flex-1 min-w-[140px]" onClick={e => e.stopPropagation()}>
-            <TagInput
-              tags={account.tags}
-              allTags={allTags}
-              onChange={handleTagsChange}
-              placeholder="Add tag…"
-              compact
-            />
-          </div>
-        ) : (
-          <button
-            onClick={e => { e.stopPropagation(); setAddingTag(true) }}
-            className={cn(
-              'inline-flex items-center gap-0.5 rounded-full border border-dashed border-shelf-border',
-              'px-1.5 py-0.5 text-[10px] text-shelf-text-subtle',
-              'hover:text-shelf-accent hover:border-shelf-accent transition-colors',
-              'opacity-0 group-hover:opacity-100'
-            )}
-          >
-            <Plus size={9} />
-            tag
-          </button>
-        )}
+        <div
+          ref={tagInputRef}
+          className="flex flex-wrap gap-1 flex-1 items-center"
+        >
+          {account.tags.map(tag => (
+            <TagBadge key={tag} tag={tag} size="sm" />
+          ))}
+
+          {addingTag ? (
+            <div className="flex-1 min-w-[140px]" onClick={e => e.stopPropagation()}>
+              <TagInput
+                tags={account.tags}
+                allTags={allTags}
+                onChange={handleTagsChange}
+                placeholder="Add tag…"
+                compact
+              />
+            </div>
+          ) : (
+            <button
+              onClick={e => { e.stopPropagation(); setAddingTag(true) }}
+              className={cn(
+                'inline-flex items-center gap-0.5 rounded-full border border-dashed border-shelf-border',
+                'px-1.5 py-0.5 text-[10px] text-shelf-text-subtle',
+                'hover:text-shelf-accent hover:border-shelf-accent transition-colors',
+                'opacity-0 group-hover:opacity-100'
+              )}
+            >
+              <Plus size={9} />
+              tag
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Notes preview */}

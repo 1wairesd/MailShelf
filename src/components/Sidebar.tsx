@@ -16,16 +16,24 @@ import {
   FileJson,
   Sheet,
   Keyboard,
+  Folder,
+  FolderOpen,
+  Plus,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAccountStore } from '@/store/accountStore'
+import { useGroupsStore } from '@/store/groupsStore'
 import { useTagRulesStore } from '@/store/tagRulesStore'
+import { useDragStore } from '@/store/dragStore'
 import { AccountStatus } from '@/types'
 import { useToast } from './ui/toast'
 import { UpdateModal } from './UpdateModal'
 import { useUpdateCheck } from '@/hooks/useUpdateCheck'
 import { Tooltip } from './ui/tooltip'
 import { Dialog, DialogHeader, DialogBody } from './ui/dialog'
+import { GroupModal } from './GroupModal'
 
 const STATUS_ITEMS: { status: AccountStatus | 'all'; label: string; icon: React.ReactNode }[] = [
   { status: 'all', label: 'All Accounts', icon: <Inbox size={15} /> },
@@ -44,16 +52,28 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
     tagCounts,
     setStatusFilter,
     setTagFilter,
+    setGroupFilter,
     exportData,
     exportCSV,
     importData,
   } = useAccountStore()
+  const { showConfirm } = useAccountStore.getState()
+  const { groups, groupCounts, deleteGroup } = useGroupsStore()
   const { rules } = useTagRulesStore()
   const { toast } = useToast()
+  const draggingAccountId = useDragStore(s => s.draggingAccountId)
+  const [dragOverGroupId, setDragOverGroupId] = React.useState<string | null>(null)
+
+  // Reset hover highlight when drag ends (e.g. dropped outside any group)
+  React.useEffect(() => {
+    if (!draggingAccountId) setDragOverGroupId(null)
+  }, [draggingAccountId])
   const enabledRulesCount = rules.filter(r => r.enabled).length
   const { status: updateStatus, info: updateInfo, check: checkUpdate, install: installUpdate } = useUpdateCheck()
   const [updateOpen, setUpdateOpen] = React.useState(false)
   const [exportOpen, setExportOpen] = React.useState(false)
+  const [groupModalOpen, setGroupModalOpen] = React.useState(false)
+  const [editingGroup, setEditingGroup] = React.useState<import('@/types').Group | null>(null)
 
   const hasUpdate = updateStatus === 'downloaded' || updateStatus === 'available' || updateStatus === 'downloading'
 
@@ -69,6 +89,35 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
   }, [])
 
   const activeTagFilters = filters.tags ?? []
+  const activeGroupId = filters.groupId ?? null
+
+  const handleOpenCreateGroup = () => {
+    setEditingGroup(null)
+    setGroupModalOpen(true)
+  }
+
+  const handleOpenEditGroup = (e: React.MouseEvent, group: import('@/types').Group) => {
+    e.stopPropagation()
+    setEditingGroup(group)
+    setGroupModalOpen(true)
+  }
+
+  const handleDeleteGroup = (e: React.MouseEvent, group: import('@/types').Group) => {
+    e.stopPropagation()
+    const count = groupCounts[group.id] ?? 0
+    showConfirm({
+      title: `Delete group "${group.name}"?`,
+      description: count > 0
+        ? `This group contains ${count} account${count !== 1 ? 's' : ''}. They will become ungrouped, but won't be deleted.`
+        : 'This group will be permanently deleted.',
+      confirmLabel: 'Delete group',
+      onConfirm: async () => {
+        await deleteGroup(group.id)
+        if (activeGroupId === group.id) setGroupFilter(null)
+        toast(`Group "${group.name}" deleted`, 'info')
+      },
+    })
+  }
 
   const handleExport = async () => {
     const result = await exportData()
@@ -107,6 +156,10 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
 
   return (
     <aside className="w-56 shrink-0 flex flex-col bg-shelf-bg border-r border-shelf-border overflow-hidden">
+
+      {/* ── Scrollable top section ── */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+
       {/* Stats header */}
       <div className="px-3 pt-3 pb-2">
         <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-shelf-elevated/50">
@@ -159,6 +212,113 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
         </nav>
       </div>
 
+      {/* Groups */}
+      <div className="px-3 py-1 mt-1">
+        <div className="flex items-center justify-between px-2 mb-1">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle">
+            Groups
+          </p>
+          <Tooltip content="New group">
+            <button
+              onClick={handleOpenCreateGroup}
+              className="p-0.5 rounded text-shelf-text-subtle hover:text-shelf-accent hover:bg-shelf-elevated transition-colors"
+            >
+              <Plus size={11} />
+            </button>
+          </Tooltip>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {groups.length === 0 && (
+            <button
+              onClick={handleOpenCreateGroup}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-shelf-text-subtle hover:text-shelf-accent hover:bg-shelf-elevated transition-colors"
+            >
+              <Plus size={11} />
+              <span>Add a group…</span>
+            </button>
+          )}
+          {groups.map(group => {
+            const isActive = activeGroupId === group.id
+            const count = groupCounts[group.id] ?? 0
+            const isDragOver = draggingAccountId !== null && dragOverGroupId === group.id
+            const isDragHint = draggingAccountId !== null && !isDragOver
+            return (
+              <div
+                key={group.id}
+                className="group/item relative flex items-center"
+                onDragOver={e => {
+                  if (!draggingAccountId) return
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'move'
+                  setDragOverGroupId(group.id)
+                }}
+                onDragLeave={() => setDragOverGroupId(null)}
+                onDrop={async e => {
+                  e.preventDefault()
+                  setDragOverGroupId(null)
+                  const accountId = e.dataTransfer.getData('text/plain')
+                  if (!accountId) return
+                  await useGroupsStore.getState().moveAccountsToGroup(group.id, [accountId])
+                  await useGroupsStore.getState().loadGroupCounts()
+                  useAccountStore.getState().loadAccounts()
+                  toast(`Moved to "${group.name}"`, 'success')
+                }}
+              >
+                <button
+                  onClick={() => setGroupFilter(isActive ? null : group.id)}
+                  className={cn(
+                    'flex-1 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-all duration-100 text-left min-w-0',
+                    isDragOver
+                      ? 'bg-shelf-accent/25 text-shelf-accent'
+                      : isDragHint
+                        ? 'bg-shelf-elevated/70 text-shelf-text'
+                        : isActive
+                          ? 'bg-shelf-accent/15 text-shelf-accent'
+                          : 'text-shelf-text-muted hover:bg-shelf-elevated hover:text-shelf-text'
+                  )}
+                >
+                  <span
+                    className="shrink-0 transition-colors"
+                    style={{ color: isDragOver ? undefined : isDragHint ? group.color : isActive ? undefined : group.color }}
+                  >
+                    {isDragOver || isDragHint ? <FolderOpen size={14} /> : isActive ? <FolderOpen size={14} /> : <Folder size={14} />}
+                  </span>
+                  <span className="truncate flex-1">{group.name}</span>
+                  {isDragOver && (
+                    <span className="text-[10px] font-medium text-shelf-accent shrink-0">drop</span>
+                  )}
+                  {!isDragOver && !isDragHint && count > 0 && (
+                    <span className={cn(
+                      'text-[10px] font-medium tabular-nums shrink-0',
+                      isActive ? 'text-shelf-accent' : 'text-shelf-text-subtle'
+                    )}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+                {/* Edit / Delete — visible on hover, hidden during drag */}
+                {!draggingAccountId && (
+                  <div className="absolute right-1 flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity bg-shelf-bg rounded">
+                    <button
+                      onClick={e => handleOpenEditGroup(e, group)}
+                      className="p-1 rounded text-shelf-text-subtle hover:text-shelf-text hover:bg-shelf-elevated transition-colors"
+                    >
+                      <Pencil size={10} />
+                    </button>
+                    <button
+                      onClick={e => handleDeleteGroup(e, group)}
+                      className="p-1 rounded text-shelf-text-subtle hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Tags */}
       {allTags.length > 0 && (
         <div className="px-3 py-2 mt-1">
@@ -197,12 +357,12 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
 
         </div>
       )}
+      {/* ── End scrollable section ── */}
+      </div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Import/Export */}
-      <div className="px-3 py-3 border-t border-shelf-border">
+      {/* Import/Export — fixed at bottom */}
+      <div className="shrink-0 border-t border-shelf-border">
+        <div className="px-3 py-3">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle px-2 mb-1.5">
           Data
         </p>
@@ -233,6 +393,7 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
             <Download size={14} />
             <span>Export</span>
           </button>
+        </div>
         </div>
       </div>
 
@@ -322,6 +483,12 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
           </div>
         </DialogBody>
       </Dialog>
+
+      <GroupModal
+        open={groupModalOpen}
+        onClose={() => setGroupModalOpen(false)}
+        editing={editingGroup}
+      />
     </aside>
   )
 }
