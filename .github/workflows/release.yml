@@ -78,18 +78,8 @@ jobs:
       - name: Package — ${{ matrix.platform }}
         run: ${{ matrix.build_cmd }}
         env:
-          # Code-signing (Windows): set CSC_LINK + CSC_KEY_PASSWORD secrets in GitHub repo
-          # settings to enable Authenticode signing. When not set, builds unsigned.
-          CSC_LINK: ${{ secrets.CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD || '' }}
-          # Disable auto-discovery so electron-builder doesn't try to use an empty CSC_LINK as a path
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' && 'true' || 'false' }}
-          # macOS: set APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID for notarization
-          APPLE_ID: ${{ secrets.APPLE_ID || '' }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
-          # Don't let electron-builder auto-publish — we handle it below
           GH_TOKEN: ''
 
       - name: Upload artifacts
