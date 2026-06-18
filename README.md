@@ -89,7 +89,15 @@ Go to [**Releases**](../../releases/latest) and download the installer for your 
 | 🍎 macOS | `MailShelf-x.x.x.dmg` |
 | 🐧 Linux | `MailShelf-x.x.x.AppImage` or `.deb` |
 
-> **Windows note:** You may see a SmartScreen warning on first launch ("Unknown publisher"). Click **More info → Run anyway**. This happens because the app is not code-signed yet.
+> **Windows SmartScreen warning:** On first launch Windows may show "Windows protected your PC — Unknown publisher". This is expected — the app is open-source and not commercially code-signed yet.
+> 1. Click **More info**
+> 2. Click **Run anyway**
+>
+> If you want to verify the file hasn't been tampered with, check the SHA256 checksum listed on the [Releases page](../../releases/latest) against your downloaded file:
+> ```powershell
+> # PowerShell
+> Get-FileHash .\MailShelf-Setup-x.x.x-x64.exe -Algorithm SHA256
+> ```
 
 ### Build from source
 

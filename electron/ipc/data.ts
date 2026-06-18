@@ -1,7 +1,8 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import fs from 'fs'
 import { DatabaseService } from '../database'
-import { Account } from '../types'
+import { CreateAccountInput } from '../types'
+import { validateCreateInput } from './accounts'
 
 export function registerDataIpc(
   getDb: () => DatabaseService | null,
@@ -88,7 +89,21 @@ export function registerDataIpc(
     if (rawAccounts.length > 100_000) return { success: false, error: 'Too many accounts (max 100,000)' }
     if (!db) throw new Error('Database not initialized')
 
-    const count = db.importAccounts(rawAccounts as Account[])
+    // Validate every account before touching the DB — reject the whole file on any error
+    let validated: CreateAccountInput[]
+    try {
+      validated = rawAccounts.map((a, i) => {
+        try {
+          return validateCreateInput(a)
+        } catch (e) {
+          throw new Error(`Account #${i + 1}: ${(e as Error).message}`)
+        }
+      })
+    } catch (e) {
+      return { success: false, error: `Validation failed — ${(e as Error).message}` }
+    }
+
+    const count = db.importAccounts(validated)
     return { success: true, count }
   })
 }

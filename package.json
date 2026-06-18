@@ -82,6 +82,7 @@
     "directories": {
       "output": "release"
     },
+    "asar": true,
     "files": [
       "dist/**/*",
       "dist-electron/**/*"
@@ -102,8 +103,7 @@
         }
       ],
       "icon": "resources/icon.ico",
-      "signingHashAlgorithms": null,
-      "sign": null
+      "publisherName": "MailShelf"
     },
     "mac": {
       "target": "dmg",

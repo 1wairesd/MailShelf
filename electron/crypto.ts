@@ -43,7 +43,14 @@ export function initCrypto(userDataPath: string): void {
     masterKey = newKey
   } else {
     // Fallback: PBKDF2 with stored salt
-    // Less secure than safeStorage but better than plaintext
+    // Less secure than safeStorage but better than plaintext.
+    // Warn once so the user/developer knows encryption is degraded.
+    console.warn(
+      '[MailShelf] safeStorage is unavailable on this system. ' +
+      'Passwords are protected with PBKDF2 derived from machine identifiers. ' +
+      'This is weaker than OS keychain protection. ' +
+      'Consider running the app in a desktop session with a keyring service (libsecret/KWallet on Linux).'
+    )
     const saltPath = path.join(userDataPath, 'salt.bin')
     let salt: Buffer
 

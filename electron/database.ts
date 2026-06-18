@@ -460,8 +460,8 @@ export class DatabaseService {
     return [headers.join(','), ...rows].join('\n')
   }
 
-  importAccounts(accounts: Account[]): number {
-    const importMany = this.db.transaction((accounts: Account[]) => {
+  importAccounts(accounts: CreateAccountInput[]): number {
+    const importMany = this.db.transaction((accounts: CreateAccountInput[]) => {
       let count = 0
       const stmt = this.db.prepare(`
         INSERT OR REPLACE INTO accounts
@@ -469,8 +469,9 @@ export class DatabaseService {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       for (const a of accounts) {
-        const id = a.id || uuidv4()
-        const tags = Array.isArray(a.tags) ? JSON.stringify(a.tags) : (a.tags ?? '[]')
+        const id = uuidv4()   // always generate a new id — never trust the import source
+        const now = new Date().toISOString()
+        const tags = Array.isArray(a.tags) ? JSON.stringify(a.tags) : '[]'
         const encryptedPassword = encrypt(a.password ?? '')
         stmt.run(
           id,
@@ -480,10 +481,10 @@ export class DatabaseService {
           a.notes ?? '',
           tags,
           a.status ?? 'active',
-          a.created_at ?? new Date().toISOString(),
-          a.updated_at ?? new Date().toISOString(),
-          a.last_used_at ?? null,
-          a.archived_at ?? null,
+          now,
+          now,
+          null,
+          null,
         )
         count++
       }
