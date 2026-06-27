@@ -103,7 +103,8 @@
         }
       ],
       "icon": "resources/icon.ico",
-      "publisherName": "MailShelf"
+      "publisherName": "MailShelf",
+      "verifyUpdateCodeSignature": false
     },
     "mac": {
       "target": "dmg",
