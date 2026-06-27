@@ -38,7 +38,7 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
     touchAccount,
     showConfirm,
   } = useAccountStore.getState()
-  const { setDraggingAccountId } = useDragStore.getState()
+  const { setDraggingAccountId, setGroupsCollapsed } = useDragStore.getState()
   const { toast } = useToast()
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [copiedPass, setCopiedPass] = useState(false)
@@ -153,7 +153,7 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
             <span className="text-sm font-medium text-shelf-text truncate font-mono">
               {account.email}
             </span>
-            <span className="text-[10px] text-shelf-text-subtle bg-shelf-elevated px-1.5 py-0.5 rounded shrink-0">
+            <span className="text-xs text-shelf-text-subtle bg-shelf-elevated px-1.5 py-0.5 rounded shrink-0">
               {account.provider}
             </span>
           </div>
@@ -168,30 +168,14 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
             </span>
             <button
               onClick={e => { e.stopPropagation(); setShowPass(v => !v) }}
-              className="text-shelf-text-subtle hover:text-shelf-text-muted transition-colors opacity-0 group-hover:opacity-100"
+              className="p-1 rounded text-shelf-text-subtle hover:text-shelf-text-muted transition-colors opacity-0 group-hover:opacity-100"
             >
-              {showPass ? <EyeOff size={11} /> : <Eye size={11} />}
+              {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
             </button>
           </div>
         </div>
 
-        {/* Status badge — click to change */}
-        <Dropdown
-          trigger={
-            <div onClick={e => e.stopPropagation()}>
-              <StatusBadge status={account.status} size="sm" />
-            </div>
-          }
-          items={STATUS_ITEMS.map(s => ({
-            label: s.label,
-            icon: <span className={cn('w-2 h-2 rounded-full', s.dotColor)} />,
-            onClick: () => handleStatusChange(s.value),
-            disabled: s.value === account.status,
-          }))}
-          align="right"
-        />
-
-        {/* Actions */}
+        {/* Actions — visible on hover */}
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-drag">
           <Tooltip content="Copy email">
             <button
@@ -236,6 +220,22 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
             ]}
           />
         </div>
+
+        {/* Status badge — always visible, click to change */}
+        <Dropdown
+          trigger={
+            <div onClick={e => e.stopPropagation()}>
+              <StatusBadge status={account.status} size="sm" />
+            </div>
+          }
+          items={STATUS_ITEMS.map(s => ({
+            label: s.label,
+            icon: <span className={cn('w-2 h-2 rounded-full', s.dotColor)} />,
+            onClick: () => handleStatusChange(s.value),
+            disabled: s.value === account.status,
+          }))}
+          align="right"
+        />
       </div>
 
       {/* Tags + quick-add */}
@@ -248,6 +248,8 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
             e.dataTransfer.setData('text/plain', account.id)
             setIsDragging(true)
             setDraggingAccountId(account.id)
+            // Auto-expand groups panel so drop targets are visible
+            setGroupsCollapsed(false)
           }}
           onDragEnd={() => {
             setIsDragging(false)
@@ -307,23 +309,23 @@ export const AccountCard = React.memo(function AccountCard({ account, isSelected
       {/* Date */}
       <div className="flex items-center gap-2 pl-7">
         <div className="flex items-center gap-1">
-          <Clock size={10} className="text-shelf-text-subtle" />
-          <span className="text-[10px] text-shelf-text-subtle">
+          <Clock size={11} className="text-shelf-text-subtle" />
+          <span className="text-xs text-shelf-text-subtle">
             {formatDate(account.updated_at)}
           </span>
         </div>
         {account.last_used_at && (
           <>
-            <span className="text-[10px] text-shelf-border">·</span>
-            <span className="text-[10px] text-shelf-text-subtle" title="Last used">
+            <span className="text-xs text-shelf-border">·</span>
+            <span className="text-xs text-shelf-text-subtle" title="Last used">
               used {formatDate(account.last_used_at)}
             </span>
           </>
         )}
         {account.status === 'archived' && account.archived_at && (
           <>
-            <span className="text-[10px] text-shelf-border">·</span>
-            <span className="text-[10px] text-shelf-text-subtle" title="Archived">
+            <span className="text-xs text-shelf-border">·</span>
+            <span className="text-xs text-shelf-text-subtle" title="Archived">
               archived {formatDate(account.archived_at)}
             </span>
           </>

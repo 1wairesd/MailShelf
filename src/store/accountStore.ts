@@ -112,6 +112,17 @@ const defaultFilters: AccountFilters = {
 // Debounced version of loadAccounts for search — prevents firing on every keystroke
 const debouncedSearch = debounce((fn: () => void) => fn(), 150)
 
+// Helper: patch a single account in local state without a full reload
+function patchAccount(
+  set: (fn: (state: { accounts: Account[] }) => Partial<{ accounts: Account[] }>) => void,
+  id: string,
+  partial: Partial<Account>
+) {
+  set(state => ({
+    accounts: state.accounts.map(a => (a.id === id ? { ...a, ...partial } : a)),
+  }))
+}
+
 export const useAccountStore = create<AccountStore>()(
   subscribeWithSelector((set, get) => ({
     accounts: [],
@@ -195,9 +206,14 @@ export const useAccountStore = create<AccountStore>()(
     updateAccount: async (id, input) => {
       try {
         const account = await api.accounts.update(id, input)
-        get().loadAccounts().catch(e => console.error('[store] loadAccounts after update failed:', e))
+        // Patch local state immediately — panel reflects the change without waiting for reload
+        patchAccount(set, id, { ...input, ...account })
+        // Stats counters depend on status — refresh them in the background
         get().loadStats().catch(e => console.error('[store] loadStats after update failed:', e))
-        get().loadTags().catch(e => console.error('[store] loadTags after update failed:', e))
+        // Tags list may have changed if tags were edited
+        if (input.tags) {
+          get().loadTags().catch(e => console.error('[store] loadTags after update failed:', e))
+        }
         return account
       } catch (err) {
         console.error('[store] updateAccount failed:', err)
@@ -211,12 +227,7 @@ export const useAccountStore = create<AccountStore>()(
       try {
         const now = new Date().toISOString()
         await api.accounts.update(id, { last_used_at: now })
-        // Patch only the affected account in local state — no full reload
-        set(state => ({
-          accounts: state.accounts.map(a =>
-            a.id === id ? { ...a, last_used_at: now } : a
-          ),
-        }))
+        patchAccount(set, id, { last_used_at: now })
       } catch (err) {
         console.error('[store] touchAccount failed:', err)
       }

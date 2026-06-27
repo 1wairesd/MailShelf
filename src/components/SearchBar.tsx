@@ -33,7 +33,7 @@ export function SearchBar() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyF') {
         e.preventDefault()
         inputRef.current?.focus()
         inputRef.current?.select()
@@ -49,7 +49,6 @@ export function SearchBar() {
 
   const hasActiveFilters =
     searchQuery ||
-    (filters.status && filters.status !== 'all') ||
     (filters.provider && filters.provider !== '') ||
     (filters.tags && filters.tags.length > 0)
 

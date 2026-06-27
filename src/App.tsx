@@ -35,7 +35,7 @@ function AppContent() {
   // Ctrl+K / Cmd+K — command palette
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyK') {
         e.preventDefault()
         setShowPalette(v => !v)
       }

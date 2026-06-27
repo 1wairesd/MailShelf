@@ -18,14 +18,14 @@ export function useKeyboardShortcuts(onShowShortcuts: () => void) {
       }
 
       // Cmd/Ctrl+N — new account
-      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyN') {
         e.preventDefault()
         store.openCreateForm()
         return
       }
 
       // Cmd/Ctrl+A — select all (not in input)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'a' && !isInput) {
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyA' && !isInput) {
         e.preventDefault()
         store.selectAll()
         return
@@ -48,7 +48,7 @@ export function useKeyboardShortcuts(onShowShortcuts: () => void) {
       }
 
       // Cmd/Ctrl+E — edit active account
-      if ((e.metaKey || e.ctrlKey) && e.key === 'e' && !isInput) {
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyE' && !isInput) {
         e.preventDefault()
         const account = store.accounts.find(a => a.id === store.activeAccountId)
         if (account) store.openEditForm(account)
@@ -107,7 +107,7 @@ export function useKeyboardShortcuts(onShowShortcuts: () => void) {
       }
 
       // Cmd/Ctrl+C — copy email of active account (not in input)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && !isInput && store.activeAccountId) {
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyC' && !e.shiftKey && !isInput && store.activeAccountId) {
         const account = store.accounts.find(a => a.id === store.activeAccountId)
         if (account) {
           e.preventDefault()
@@ -117,7 +117,7 @@ export function useKeyboardShortcuts(onShowShortcuts: () => void) {
       }
 
       // Cmd/Ctrl+Shift+C — copy password
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'C' && !isInput && store.activeAccountId) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyC' && !isInput && store.activeAccountId) {
         const account = store.accounts.find(a => a.id === store.activeAccountId)
         if (account?.password) {
           e.preventDefault()
@@ -127,14 +127,14 @@ export function useKeyboardShortcuts(onShowShortcuts: () => void) {
       }
 
       // Cmd/Ctrl+I — import
-      if ((e.metaKey || e.ctrlKey) && e.key === 'i' && !isInput) {
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyI' && !isInput) {
         e.preventDefault()
         store.importData()
         return
       }
 
       // Cmd/Ctrl+Shift+E — export
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'E' && !isInput) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyE' && !isInput) {
         e.preventDefault()
         store.exportData()
         return

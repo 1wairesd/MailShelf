@@ -11,9 +11,14 @@ interface DragStore {
   /** ID of the account being dragged, or null when idle */
   draggingAccountId: string | null
   setDraggingAccountId: (id: string | null) => void
+  /** Whether the Groups section in the sidebar is collapsed */
+  groupsCollapsed: boolean
+  setGroupsCollapsed: (collapsed: boolean) => void
 }
 
 export const useDragStore = create<DragStore>((set) => ({
   draggingAccountId: null,
   setDraggingAccountId: (id) => set({ draggingAccountId: id }),
+  groupsCollapsed: false,
+  setGroupsCollapsed: (collapsed) => set({ groupsCollapsed: collapsed }),
 }))

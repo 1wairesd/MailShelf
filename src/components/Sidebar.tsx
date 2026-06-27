@@ -63,6 +63,8 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
   const { rules } = useTagRulesStore()
   const { toast } = useToast()
   const draggingAccountId = useDragStore(s => s.draggingAccountId)
+  const groupsCollapsed = useDragStore(s => s.groupsCollapsed)
+  const { setGroupsCollapsed } = useDragStore.getState()
   const [dragOverGroupId, setDragOverGroupId] = React.useState<string | null>(null)
 
   // Reset hover highlight when drag ends (e.g. dropped outside any group)
@@ -75,7 +77,6 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
   const [exportOpen, setExportOpen] = React.useState(false)
   const [groupModalOpen, setGroupModalOpen] = React.useState(false)
   const [editingGroup, setEditingGroup] = React.useState<import('@/types').Group | null>(null)
-  const [groupsCollapsed, setGroupsCollapsed] = React.useState(false)
   const [tagsCollapsed, setTagsCollapsed] = React.useState(false)
 
   const hasUpdate = updateStatus === 'downloaded' || updateStatus === 'available' || updateStatus === 'downloading'
@@ -219,7 +220,7 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
       <div className="px-3 py-1 mt-1">
         <div className="flex items-center justify-between px-2 mb-1">
           <button
-            onClick={() => setGroupsCollapsed(v => !v)}
+            onClick={() => setGroupsCollapsed(!groupsCollapsed)}
             className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle hover:text-shelf-text-muted transition-colors"
           >
             <ChevronDown
@@ -395,7 +396,7 @@ export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { o
             <Zap size={14} className="shrink-0" />
             <span>Tag Rules</span>
             {enabledRulesCount > 0 && (
-              <span className="ml-auto text-[10px] font-medium tabular-nums bg-shelf-accent/20 text-shelf-accent px-1.5 py-0.5 rounded-full">
+              <span className="ml-auto text-xs font-medium tabular-nums bg-shelf-elevated text-shelf-text-muted px-1.5 py-0.5 rounded">
                 {enabledRulesCount}
               </span>
             )}
