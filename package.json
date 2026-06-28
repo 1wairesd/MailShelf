@@ -1,6 +1,6 @@
 {
   "name": "mailshelf",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "description": "A local-first account/email manager for developers and power users",
   "repository": {
     "type": "git",
