@@ -31,6 +31,8 @@ function initAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.channel = channel === 'beta' ? 'beta' : 'latest'
   autoUpdater.allowPrerelease = channel === 'beta'
+  // Disable code signature verification — app is not commercially signed
+  autoUpdater.verifyUpdateCodeSignature = false
 
   autoUpdater.on('update-available', (info) => {
     mainWindow?.webContents.send('updater:update-available', {
