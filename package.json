@@ -103,7 +103,6 @@
         }
       ],
       "icon": "resources/icon.ico",
-      "publisherName": "MailShelf",
       "verifyUpdateCodeSignature": false
     },
     "mac": {
