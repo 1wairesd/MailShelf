@@ -12,7 +12,7 @@ import { InlineTagEditor } from './TagInput'
 import { Button } from './ui/button'
 import { Select } from './ui/select'
 import { useToast } from './ui/toast'
-import { AccountStatus, STATUS_CONFIG } from '@/types'
+import { Account, AccountStatus, STATUS_CONFIG } from '@/types'
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
   value,
@@ -20,7 +20,16 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
 }))
 
 export function AccountDetail() {
-  const { accounts, activeAccountId, openEditForm, updateAccount, touchAccount, setActiveAccount, showConfirm, deleteAccount, allTags } = useAccountStore()
+  // Granular selectors — component only re-renders when its own slice changes
+  const account = useAccountStore(s => {
+    const found = s.accounts.find(a => a.id === s.activeAccountId)
+    return found ?? null
+  })
+  const allTags = useAccountStore(s => s.allTags)
+  // Actions are stable references — read from getState() to avoid subscribing to them
+  const { openEditForm, updateAccount, touchAccount, setActiveAccount, showConfirm, deleteAccount } =
+    useAccountStore.getState()
+
   const { toast } = useToast()
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [copiedPass, setCopiedPass] = useState(false)
@@ -29,56 +38,55 @@ export function AccountDetail() {
   // Keep a stable reference to the last found account so the panel doesn't
   // flash/disappear during brief moments when accounts[] is being reloaded
   // (e.g. right after an update triggers loadAccounts).
-  const lastAccountRef = useRef<ReturnType<typeof accounts.find>>(undefined)
-  const found = accounts.find(a => a.id === activeAccountId)
-  if (found) lastAccountRef.current = found
-  const account = found ?? lastAccountRef.current
-  if (!account) return null
+  const lastAccountRef = useRef<Account | null>(null)
+  if (account) lastAccountRef.current = account
+  const displayed = account ?? lastAccountRef.current
+  if (!displayed) return null
 
   const handleCopyEmail = async () => {
-    const ok = await copyToClipboard(account.email)
+    const ok = await copyToClipboard(displayed.email)
     if (ok) {
       setCopiedEmail(true)
       toast('Email copied', 'success')
       setTimeout(() => setCopiedEmail(false), 2000)
-      touchAccount(account.id)
+      touchAccount(displayed.id)
     }
   }
 
   const handleCopyPass = async () => {
-    const ok = await copyToClipboard(account.password)
+    const ok = await copyToClipboard(displayed.password)
     if (ok) {
       setCopiedPass(true)
       toast('Password copied', 'success')
       setTimeout(() => setCopiedPass(false), 2000)
-      touchAccount(account.id)
+      touchAccount(displayed.id)
     }
   }
 
   const handleDelete = () => {
     showConfirm({
       title: 'Delete account?',
-      description: `This will permanently delete ${account.email}. This action cannot be undone.`,
+      description: `This will permanently delete ${displayed.email}. This action cannot be undone.`,
       confirmLabel: 'Delete',
       onConfirm: async () => {
-        await deleteAccount(account.id)
+        await deleteAccount(displayed.id)
         setActiveAccount(null)
       },
     })
   }
 
   const handleStatusChange = async (status: string) => {
-    await updateAccount(account.id, { status: status as AccountStatus })
+    await updateAccount(displayed.id, { status: status as AccountStatus })
     toast(`Status updated to ${STATUS_CONFIG[status as AccountStatus].label}`, 'success')
   }
 
   const handleMarkUsed = async () => {
-    await updateAccount(account.id, { last_used_at: new Date().toISOString() })
+    await updateAccount(displayed.id, { last_used_at: new Date().toISOString() })
     toast('Marked as used', 'success')
   }
 
   const handleTagsChange = async (tags: string[]) => {
-    await updateAccount(account.id, { tags })
+    await updateAccount(displayed.id, { tags })
   }
 
   return (
@@ -90,7 +98,7 @@ export function AccountDetail() {
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => openEditForm(account)}
+            onClick={() => openEditForm(displayed)}
             title="Edit"
           >
             <Pencil size={13} />
@@ -125,7 +133,7 @@ export function AccountDetail() {
           </label>
           <div className="flex items-center gap-2 group">
             <span className="flex-1 text-sm font-mono text-shelf-text break-all">
-              {account.email}
+              {displayed.email}
             </span>
             <button
               onClick={handleCopyEmail}
@@ -147,8 +155,8 @@ export function AccountDetail() {
               'flex-1 text-sm font-mono break-all',
               showPass ? 'text-shelf-text' : 'text-shelf-text-subtle tracking-widest'
             )}>
-              {account.password
-                ? showPass ? account.password : '•'.repeat(Math.min(account.password.length, 16))
+              {displayed.password
+                ? showPass ? displayed.password : '•'.repeat(Math.min(displayed.password.length, 16))
                 : <span className="text-shelf-text-subtle italic text-xs">not set</span>
               }
             </span>
@@ -159,7 +167,7 @@ export function AccountDetail() {
               >
                 {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
-              {account.password && (
+              {displayed.password && (
                 <button
                   onClick={handleCopyPass}
                   className="p-1.5 rounded-md text-shelf-text-subtle hover:text-shelf-text hover:bg-shelf-elevated transition-colors"
@@ -177,7 +185,7 @@ export function AccountDetail() {
             <Globe size={10} />
             Provider
           </label>
-          <span className="text-sm text-shelf-text capitalize">{account.provider}</span>
+          <span className="text-sm text-shelf-text capitalize">{displayed.provider}</span>
         </div>
 
         {/* Status */}
@@ -186,9 +194,9 @@ export function AccountDetail() {
             Status
           </label>
           <div className="flex items-center gap-2">
-            <StatusBadge status={account.status} />
+            <StatusBadge status={displayed.status} />
             <Select
-              value={account.status}
+              value={displayed.status}
               onChange={handleStatusChange}
               options={STATUS_OPTIONS}
               className="flex-1"
@@ -203,21 +211,21 @@ export function AccountDetail() {
             Tags
           </label>
           <InlineTagEditor
-            tags={account.tags}
+            tags={displayed.tags}
             allTags={allTags}
             onSave={handleTagsChange}
           />
         </div>
 
         {/* Notes */}
-        {account.notes && (
+        {displayed.notes && (
           <div>
             <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle mb-1.5">
               <FileText size={10} />
               Notes
             </label>
             <p className="text-sm text-shelf-text-muted leading-relaxed whitespace-pre-wrap">
-              {account.notes}
+              {displayed.notes}
             </p>
           </div>
         )}
@@ -229,8 +237,8 @@ export function AccountDetail() {
               <Calendar size={11} />
               Created
             </span>
-            <span className="text-xs text-shelf-text-muted" title={formatDateFull(account.created_at)}>
-              {formatDate(account.created_at)}
+            <span className="text-xs text-shelf-text-muted" title={formatDateFull(displayed.created_at)}>
+              {formatDate(displayed.created_at)}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -238,29 +246,29 @@ export function AccountDetail() {
               <Clock size={11} />
               Updated
             </span>
-            <span className="text-xs text-shelf-text-muted" title={formatDateFull(account.updated_at)}>
-              {formatDate(account.updated_at)}
+            <span className="text-xs text-shelf-text-muted" title={formatDateFull(displayed.updated_at)}>
+              {formatDate(displayed.updated_at)}
             </span>
           </div>
-          {account.last_used_at && (
+          {displayed.last_used_at && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-xs text-shelf-text-subtle">
                 <Clock size={11} />
                 Last used
               </span>
-              <span className="text-xs text-shelf-text-muted" title={formatDateFull(account.last_used_at)}>
-                {formatDate(account.last_used_at)}
+              <span className="text-xs text-shelf-text-muted" title={formatDateFull(displayed.last_used_at)}>
+                {formatDate(displayed.last_used_at)}
               </span>
             </div>
           )}
-          {account.status === 'archived' && account.archived_at && (
+          {displayed.status === 'archived' && displayed.archived_at && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-xs text-shelf-text-subtle">
                 <Archive size={11} />
                 Archived
               </span>
-              <span className="text-xs text-shelf-text-muted" title={formatDateFull(account.archived_at)}>
-                {formatDate(account.archived_at)}
+              <span className="text-xs text-shelf-text-muted" title={formatDateFull(displayed.archived_at)}>
+                {formatDate(displayed.archived_at)}
               </span>
             </div>
           )}
@@ -282,7 +290,7 @@ export function AccountDetail() {
           variant="default"
           size="sm"
           className="flex-1 gap-1.5"
-          onClick={() => openEditForm(account)}
+          onClick={() => openEditForm(displayed)}
         >
           <Pencil size={13} />
           Edit

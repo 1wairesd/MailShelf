@@ -46,19 +46,14 @@ const STATUS_ITEMS: { status: AccountStatus | 'all'; label: string; icon: React.
 ]
 
 export function Sidebar({ onOpenTagRules, onOpenSettings, onShowShortcuts }: { onOpenTagRules: () => void; onOpenSettings: () => void; onShowShortcuts: () => void }) {
-  const {
-    stats,
-    filters,
-    allTags,
-    tagCounts,
-    setStatusFilter,
-    setTagFilter,
-    setGroupFilter,
-    exportData,
-    exportCSV,
-    importData,
-  } = useAccountStore()
-  const { showConfirm } = useAccountStore.getState()
+  // Granular selectors — each slice re-renders Sidebar only when its own value changes
+  const stats           = useAccountStore(s => s.stats)
+  const filters         = useAccountStore(s => s.filters)
+  const allTags         = useAccountStore(s => s.allTags)
+  const tagCounts       = useAccountStore(s => s.tagCounts)
+  // Actions are stable — read from getState() to avoid extra subscriptions
+  const { setStatusFilter, setTagFilter, setGroupFilter, exportData, exportCSV, importData, showConfirm } =
+    useAccountStore.getState()
   const { groups, groupCounts, deleteGroup } = useGroupsStore()
   const { rules } = useTagRulesStore()
   const { toast } = useToast()

@@ -60,6 +60,7 @@ export class DatabaseService {
   getStats          = ()                                                   => this.accounts.getStats()
   getAllTags         = ()                                                   => this.accounts.getAllTags()
   getTagCounts      = ()                                                   => this.accounts.getTagCounts()
+  getTagsAndCounts  = ()                                                   => this.accounts.getTagsAndCounts()
   exportAccounts    = ()                                                   => this.accounts.exportAll()
   exportAccountsCSV = ()                                                   => this.accounts.exportCSV()
   importAccounts    = (accounts: CreateAccountInput[])                    => this.accounts.import(accounts)

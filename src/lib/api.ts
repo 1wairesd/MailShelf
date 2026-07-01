@@ -36,6 +36,7 @@ declare global {
         getStats: () => Promise<AccountStats>
         getTags: () => Promise<string[]>
         getTagCounts: () => Promise<Record<string, number>>
+        getTagsAndCounts: () => Promise<{ allTags: string[]; tagCounts: Record<string, number> }>
       }
       tagRules: {
         getAll: () => Promise<TagRule[]>
@@ -129,6 +130,7 @@ export const api = {
     getStats: () => getApi().accounts.getStats(),
     getTags: () => getApi().accounts.getTags(),
     getTagCounts: () => getApi().accounts.getTagCounts(),
+    getTagsAndCounts: () => getApi().accounts.getTagsAndCounts(),
   },
   tagRules: {
     getAll: () => getApi().tagRules.getAll(),

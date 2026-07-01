@@ -35,6 +35,8 @@ const api = {
       ipcRenderer.invoke('accounts:getTags'),
     getTagCounts: () =>
       ipcRenderer.invoke('accounts:getTagCounts'),
+    getTagsAndCounts: () =>
+      ipcRenderer.invoke('accounts:getTagsAndCounts'),
   },
 
   // Tag Rules

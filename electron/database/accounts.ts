@@ -210,22 +210,30 @@ export class AccountRepository {
 
   /**
    * Add or remove a tag from multiple accounts atomically.
+   * Fetches all affected rows in one SELECT instead of N individual SELECTs.
    * mode='add'    — appends tag if not already present
    * mode='remove' — removes tag if present
    */
   bulkUpdateTag(ids: string[], tag: string, mode: 'add' | 'remove'): number {
+    if (ids.length === 0) return 0
+
     return this.db.transaction(() => {
-      const now    = new Date().toISOString()
-      const select = this.db.prepare('SELECT id, tags FROM accounts WHERE id = ?')
-      const update = this.db.prepare('UPDATE accounts SET tags = ?, updated_at = ? WHERE id = ?')
+      const now = new Date().toISOString()
+
+      // One SELECT for all ids instead of N individual SELECTs
+      const placeholders = ids.map(() => '?').join(', ')
+      const rows = this.db.prepare(
+        `SELECT id, tags FROM accounts WHERE id IN (${placeholders})`
+      ).all(...ids) as { id: string; tags: string }[]
+
+      const update = this.db.prepare(
+        'UPDATE accounts SET tags = ?, updated_at = ? WHERE id = ?'
+      )
       let count = 0
 
-      for (const id of ids) {
-        const row = select.get(id) as { id: string; tags: string } | undefined
-        if (!row) continue
-
+      for (const row of rows) {
         let tags: string[] = []
-        try { tags = JSON.parse(row.tags) } catch { tags = [] }
+        try { tags = JSON.parse(row.tags) } catch { /* keep empty */ }
 
         let next = tags
         if (mode === 'add' && !tags.includes(tag)) {
@@ -235,7 +243,7 @@ export class AccountRepository {
         }
 
         if (next !== tags) {
-          update.run(JSON.stringify(next), now, id)
+          update.run(JSON.stringify(next), now, row.id)
           count++
         }
       }
@@ -244,36 +252,47 @@ export class AccountRepository {
   }
 
   getStats(): AccountStats {
-    const rows  = this.db.prepare('SELECT status, COUNT(*) as count FROM accounts GROUP BY status').all() as { status: string; count: number }[]
-    const total = (this.db.prepare('SELECT COUNT(*) as count FROM accounts').get() as { count: number }).count
+    // Single query — total is the sum of per-status counts
+    const rows = this.db.prepare(
+      'SELECT status, COUNT(*) as count FROM accounts GROUP BY status'
+    ).all() as { status: string; count: number }[]
 
-    const stats: AccountStats = { total, active: 0, exhausted: 0, 'waiting-reset': 0, dead: 0, archived: 0 }
+    const stats: AccountStats = { total: 0, active: 0, exhausted: 0, 'waiting-reset': 0, dead: 0, archived: 0 }
     for (const row of rows) {
+      stats.total += row.count
       if (row.status in stats) (stats as unknown as Record<string, number>)[row.status] = row.count
     }
     return stats
   }
 
-  getAllTags(): string[] {
-    const rows = this.db.prepare('SELECT tags FROM accounts').all() as { tags: string }[]
-    const set  = new Set<string>()
-    for (const row of rows) {
-      try { (JSON.parse(row.tags) as string[]).forEach(t => set.add(t)) } catch { /* skip */ }
-    }
-    return Array.from(set).sort()
-  }
-
-  getTagCounts(): Record<string, number> {
+  /**
+   * Returns both tags list and tag counts in a single table scan.
+   * Use this when you need both; call getAllTags/getTagCounts separately only when you need one.
+   */
+  getTagsAndCounts(): { allTags: string[]; tagCounts: Record<string, number> } {
     const rows   = this.db.prepare('SELECT tags FROM accounts').all() as { tags: string }[]
     const counts: Record<string, number> = {}
+
     for (const row of rows) {
       try {
         for (const tag of JSON.parse(row.tags) as string[]) {
           counts[tag] = (counts[tag] ?? 0) + 1
         }
-      } catch { /* skip */ }
+      } catch { /* skip malformed JSON */ }
     }
-    return counts
+
+    return {
+      allTags:   Object.keys(counts).sort(),
+      tagCounts: counts,
+    }
+  }
+
+  getAllTags(): string[] {
+    return this.getTagsAndCounts().allTags
+  }
+
+  getTagCounts(): Record<string, number> {
+    return this.getTagsAndCounts().tagCounts
   }
 
   exportAll(): Account[] {

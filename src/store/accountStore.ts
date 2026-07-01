@@ -198,10 +198,8 @@ export const useAccountStore = create<AccountStore>()(
 
     loadTags: async () => {
       try {
-        const allTags = await api.accounts.getTags()
-        set({ allTags })
-        // Always refresh counts alongside tags
-        get().loadTagCounts().catch(console.error)
+        const { allTags, tagCounts } = await api.accounts.getTagsAndCounts()
+        set({ allTags, tagCounts })
       } catch (err) {
         console.error('Failed to load tags:', err)
       }
