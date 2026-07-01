@@ -17,7 +17,7 @@
     "dev": "concurrently -n vite,tsc,electron -c cyan,yellow,green \"npm run dev:vite\" \"npm run dev:tsc\" \"npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:tsc": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
-    "dev:electron": "wait-on tcp:5173 dist-electron/electron/main.js && cross-env NODE_ENV=development nodemon --watch dist-electron --ext js --exec \"electron .\"",
+    "dev:electron": "wait-on tcp:5173 dist-electron/electron/main.js && cross-env NODE_ENV=development nodemon --watch dist-electron --ext js --delay 1500ms --exec \"electron .\"",
     "build": "npm run build:vite && npm run build:electron",
     "build:vite": "tsc && vite build",
     "build:electron": "tsc -p tsconfig.electron.json",

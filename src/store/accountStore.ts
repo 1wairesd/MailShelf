@@ -241,8 +241,11 @@ export const useAccountStore = create<AccountStore>()(
     updateAccount: async (id, input) => {
       try {
         const account = await api.accounts.update(id, input)
-        // Patch local state immediately — panel reflects the change without waiting for reload
-        patchAccount(set, id, { ...input, ...account })
+        // Patch local state immediately — panel reflects the change without waiting for reload.
+        // Normalize password: IPC may return null for empty password, always coerce to string.
+        const patch = { ...input, ...account }
+        if (patch.password == null) patch.password = ''
+        patchAccount(set, id, patch)
         // Stats counters depend on status — refresh them in the background
         get().loadStats().catch(e => console.error('[store] loadStats after update failed:', e))
         // Tags list may have changed if tags were edited

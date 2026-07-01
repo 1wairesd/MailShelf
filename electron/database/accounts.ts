@@ -17,7 +17,8 @@ const VALID_SORT_FIELDS = ['created_at', 'updated_at', 'status', 'email', 'last_
 function rowToAccount(row: AccountRow): Account {
   return {
     ...row,
-    password: decrypt(row.password) ?? '',
+    // row.password may be null in DB despite the NOT NULL constraint on older rows
+    password: decrypt(row.password ?? '') ?? '',
     tags: (() => {
       try { return JSON.parse(row.tags) } catch { return [] }
     })(),
@@ -134,7 +135,7 @@ export class AccountRepository {
     `).run(
       id,
       input.email,
-      encrypt(input.password ?? '') ?? null,
+      encrypt(input.password ?? '') ?? '',
       input.provider ?? 'gmail',
       input.notes    ?? '',
       JSON.stringify(input.tags ?? []),
@@ -176,7 +177,7 @@ export class AccountRepository {
       WHERE id = ?
     `).run(
       input.email    ?? existing.email,
-      encrypt(input.password !== undefined ? input.password : existing.password) ?? null,
+      encrypt(input.password !== undefined ? input.password : existing.password) ?? '',
       input.provider ?? existing.provider,
       input.notes    ?? existing.notes,
       JSON.stringify(input.tags !== undefined ? input.tags : existing.tags),
@@ -327,7 +328,7 @@ export class AccountRepository {
         stmt.run(
           uuidv4(), // always generate fresh id — never trust import source
           a.email    ?? '',
-          encrypt(a.password ?? '') ?? null,
+          encrypt(a.password ?? '') ?? '',
           a.provider ?? 'gmail',
           a.notes    ?? '',
           JSON.stringify(Array.isArray(a.tags) ? a.tags : []),
