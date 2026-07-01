@@ -602,22 +602,15 @@ export class DatabaseService {
 
       const toUpdate: string[] = []
 
-      // ── Compute whether this rule should fire right now ──────────────────
-      // For day_of_month / day_of_week we find the most recent past occurrence
-      // of the target slot and check if the rule already ran after that slot.
+      // ── Compute last occurrence of the trigger slot ──────────────────────
       const lastRunAt = rule.last_run_at ? new Date(rule.last_run_at) : null
 
-      let ruleShouldFire = false
+      let lastOccurrence: Date | null = null
 
       if (rule.trigger === 'day_of_month') {
-        // Most recent past date where day-of-month === trigger_value
-        const lastOccurrence = lastOccurrenceDayOfMonth(now, rule.trigger_value)
-        // Fire if we've never run, or if we last ran before that occurrence
-        ruleShouldFire = lastRunAt === null || lastRunAt < lastOccurrence
+        lastOccurrence = lastOccurrenceDayOfMonth(now, rule.trigger_value)
       } else if (rule.trigger === 'day_of_week') {
-        // Most recent past date where weekday === trigger_value
-        const lastOccurrence = lastOccurrenceDayOfWeek(now, rule.trigger_value)
-        ruleShouldFire = lastRunAt === null || lastRunAt < lastOccurrence
+        lastOccurrence = lastOccurrenceDayOfWeek(now, rule.trigger_value)
       }
 
       for (const row of candidates) {
@@ -629,9 +622,18 @@ export class DatabaseService {
           if (diffDays >= rule.trigger_value) {
             toUpdate.push(row.id)
           }
-        } else if (ruleShouldFire) {
-          // day_of_month / day_of_week: rule fires for all matching candidates
-          toUpdate.push(row.id)
+        } else if (lastOccurrence !== null) {
+          // day_of_month / day_of_week:
+          // Fire for this account if:
+          //   1. The account entered this status BEFORE the last occurrence (i.e. it was
+          //      already waiting when the trigger day arrived), AND
+          //   2. The rule hasn't already been applied to this account after that occurrence
+          //      (guard via last_run_at so we don't double-fire within the same cycle).
+          const accountWasWaitingAtOccurrence = updatedAt < lastOccurrence
+          const ruleNotYetRunSinceOccurrence = lastRunAt === null || lastRunAt < lastOccurrence
+          if (accountWasWaitingAtOccurrence && ruleNotYetRunSinceOccurrence) {
+            toUpdate.push(row.id)
+          }
         }
       }
 
