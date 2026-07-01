@@ -5,7 +5,8 @@ import path from 'path'
 
 const ALGORITHM = 'aes-256-gcm'
 const KEY_FILE = 'master.key'
-const AUTH_TAG_LENGTH = 16 // bytes, GCM standard
+const IV_LENGTH = 12           // 96-bit IV — optimal for GCM
+const AUTH_TAG_LENGTH = 16     // bytes, GCM standard
 
 let masterKey: Buffer | null = null
 
@@ -20,80 +21,70 @@ export function initCrypto(userDataPath: string): void {
     if (fs.existsSync(keyPath)) {
       try {
         const encryptedKey = fs.readFileSync(keyPath)
-        // FIX: was calling decryptString twice — now called once
         const keyBase64 = safeStorage.decryptString(encryptedKey)
         masterKey = Buffer.from(keyBase64, 'base64')
-        // Validate key length
-        if (masterKey.length !== 32) {
-          throw new Error('Invalid key length, regenerating')
-        }
+        if (masterKey.length !== 32) throw new Error('Invalid key length')
         return
       } catch {
-        // Key corrupted or wrong — generate new one
-        // This means existing encrypted data will be unreadable, but security is maintained
+        // Key corrupted or wrong — generate new one.
+        // Existing encrypted data will be unreadable, but security is maintained.
         try { fs.unlinkSync(keyPath) } catch { /* ignore */ }
       }
     }
 
-    // Generate new 256-bit key
     const newKey = crypto.randomBytes(32)
     const encryptedKey = safeStorage.encryptString(newKey.toString('base64'))
-    // FIX: write with restricted permissions (owner read/write only)
     fs.writeFileSync(keyPath, encryptedKey, { mode: 0o600 })
     masterKey = newKey
   } else {
-    // Fallback: PBKDF2 with stored salt
+    // Fallback: PBKDF2 with stored salt.
     // Less secure than safeStorage but better than plaintext.
-    // Warn once so the user/developer knows encryption is degraded.
     console.warn(
       '[MailShelf] safeStorage is unavailable on this system. ' +
       'Passwords are protected with PBKDF2 derived from machine identifiers. ' +
       'This is weaker than OS keychain protection. ' +
       'Consider running the app in a desktop session with a keyring service (libsecret/KWallet on Linux).'
     )
-    const saltPath = path.join(userDataPath, 'salt.bin')
-    let salt: Buffer
+    masterKey = deriveKeyFromMachine(userDataPath)
+  }
+}
 
-    if (fs.existsSync(saltPath)) {
-      salt = fs.readFileSync(saltPath)
-      if (salt.length < 32) {
-        // Salt too short, regenerate
-        salt = crypto.randomBytes(32)
-        fs.writeFileSync(saltPath, salt, { mode: 0o600 })
-      }
-    } else {
+function deriveKeyFromMachine(userDataPath: string): Buffer {
+  const saltPath = path.join(userDataPath, 'salt.bin')
+  let salt: Buffer
+
+  if (fs.existsSync(saltPath)) {
+    salt = fs.readFileSync(saltPath)
+    if (salt.length < 32) {
       salt = crypto.randomBytes(32)
       fs.writeFileSync(saltPath, salt, { mode: 0o600 })
     }
-
-    // FIX: use more robust fallback — machine ID + app name, handle missing env vars
-    const appName = app.getName() || 'mailshelf'
-    const machineId = [
-      process.env.USERNAME,
-      process.env.COMPUTERNAME,
-      process.env.USER,
-      process.env.HOSTNAME,
-    ].filter(Boolean).join('|') || 'default'
-
-    masterKey = crypto.pbkdf2Sync(
-      `${appName}:${machineId}`,
-      salt,
-      200_000,  // FIX: increased from 100k to 200k iterations
-      32,
-      'sha256'
-    )
+  } else {
+    salt = crypto.randomBytes(32)
+    fs.writeFileSync(saltPath, salt, { mode: 0o600 })
   }
+
+  const appName = app.getName() || 'mailshelf'
+  const machineId = [
+    process.env.USERNAME,
+    process.env.COMPUTERNAME,
+    process.env.USER,
+    process.env.HOSTNAME,
+  ].filter(Boolean).join('|') || 'default'
+
+  return crypto.pbkdf2Sync(`${appName}:${machineId}`, salt, 200_000, 32, 'sha256')
 }
 
 /**
  * Encrypt a plaintext string.
  * Returns format: base64(iv):base64(authTag):base64(ciphertext)
+ * Returns null if plaintext is empty (empty string is stored as-is, not encrypted).
  */
-export function encrypt(plaintext: string): string {
+export function encrypt(plaintext: string): string | null {
   if (!masterKey) throw new Error('Crypto not initialized')
-  if (!plaintext) return ''
+  if (!plaintext) return null
 
-  const iv = crypto.randomBytes(12) // 96-bit IV — optimal for GCM
+  const iv = crypto.randomBytes(IV_LENGTH)
   const cipher = crypto.createCipheriv(ALGORITHM, masterKey, iv, {
     authTagLength: AUTH_TAG_LENGTH,
   })
@@ -113,11 +104,12 @@ export function encrypt(plaintext: string): string {
 
 /**
  * Decrypt a string produced by encrypt().
- * Returns empty string on failure — never throws to avoid oracle attacks.
+ * Returns null on failure — never throws to avoid oracle attacks.
+ * Returns null for null/empty input (mirrors encrypt behaviour).
  */
-export function decrypt(ciphertext: string): string {
+export function decrypt(ciphertext: string | null): string | null {
   if (!masterKey) throw new Error('Crypto not initialized')
-  if (!ciphertext) return ''
+  if (!ciphertext) return null
 
   const parts = ciphertext.split(':')
   if (parts.length !== 3) {
@@ -126,14 +118,11 @@ export function decrypt(ciphertext: string): string {
   }
 
   try {
-    const iv = Buffer.from(parts[0], 'base64')
-    const authTag = Buffer.from(parts[1], 'base64')
+    const iv        = Buffer.from(parts[0], 'base64')
+    const authTag   = Buffer.from(parts[1], 'base64')
     const encrypted = Buffer.from(parts[2], 'base64')
 
-    // FIX: validate lengths before decryption
-    if (iv.length !== 12 || authTag.length !== AUTH_TAG_LENGTH) {
-      return ''
-    }
+    if (iv.length !== IV_LENGTH || authTag.length !== AUTH_TAG_LENGTH) return null
 
     const decipher = crypto.createDecipheriv(ALGORITHM, masterKey, iv, {
       authTagLength: AUTH_TAG_LENGTH,
@@ -142,14 +131,14 @@ export function decrypt(ciphertext: string): string {
 
     return decipher.update(encrypted).toString('utf8') + decipher.final('utf8')
   } catch {
-    // FIX: don't log decryption errors — avoids timing/oracle information leakage
-    return ''
+    // Don't log decryption errors — avoids timing/oracle information leakage
+    return null
   }
 }
 
 /**
  * Securely zero out the master key from memory.
- * Call on app quit.
+ * Call on app quit (before-quit event).
  */
 export function clearCrypto(): void {
   if (masterKey) {

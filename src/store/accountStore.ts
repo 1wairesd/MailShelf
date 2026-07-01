@@ -125,6 +125,41 @@ function patchAccount(
   }))
 }
 
+// Helper: show confirm dialog and resolve when user confirms or dismisses
+function makeExport(
+  get: () => AccountStore,
+  set: (s: Partial<AccountStore>) => void,
+  apiFn: () => Promise<{ success: boolean; count?: number }>,
+  title: string,
+  description: string,
+): Promise<{ success: boolean; count?: number }> {
+  return new Promise(resolve => {
+    get().showConfirm({
+      title,
+      description,
+      confirmLabel: 'Export',
+      confirmVariant: 'default',
+      onConfirm: async () => {
+        try {
+          resolve(await apiFn())
+        } catch (err) {
+          set({ error: String(err) })
+          resolve({ success: false })
+        }
+      },
+    })
+    const unsub = useAccountStore.subscribe(
+      s => s.confirmDialog,
+      (dialog) => {
+        if (dialog === null) {
+          unsub()
+          resolve({ success: false })
+        }
+      }
+    )
+  })
+}
+
 export const useAccountStore = create<AccountStore>()(
   subscribeWithSelector((set, get) => ({
     accounts: [],
@@ -450,62 +485,21 @@ export const useAccountStore = create<AccountStore>()(
     },
 
     exportData: async () => {
-      return new Promise(resolve => {
-        get().showConfirm({
-          title: 'Export accounts',
-          description: 'Passwords will be exported in plain text. Make sure to store the file in a safe place.',
-          confirmLabel: 'Export',
-          confirmVariant: 'default',
-          onConfirm: async () => {
-            try {
-              const result = await api.data.export()
-              resolve(result)
-            } catch (err) {
-              set({ error: String(err) })
-              resolve({ success: false })
-            }
-          },
-        })
-        // resolve with cancelled if user dismisses
-        const unsub = useAccountStore.subscribe(
-          s => s.confirmDialog,
-          (dialog) => {
-            if (dialog === null) {
-              unsub()
-              resolve({ success: false })
-            }
-          }
-        )
-      })
+      return makeExport(
+        get, set,
+        () => api.data.export(),
+        'Export accounts',
+        'Passwords will be exported in plain text. Make sure to store the file in a safe place.',
+      )
     },
 
     exportCSV: async () => {
-      return new Promise(resolve => {
-        get().showConfirm({
-          title: 'Export accounts as CSV',
-          description: 'Passwords will be exported in plain text. Make sure to store the file in a safe place.',
-          confirmLabel: 'Export',
-          confirmVariant: 'default',
-          onConfirm: async () => {
-            try {
-              const result = await api.data.exportCSV()
-              resolve(result)
-            } catch (err) {
-              set({ error: String(err) })
-              resolve({ success: false })
-            }
-          },
-        })
-        const unsub = useAccountStore.subscribe(
-          s => s.confirmDialog,
-          (dialog) => {
-            if (dialog === null) {
-              unsub()
-              resolve({ success: false })
-            }
-          }
-        )
-      })
+      return makeExport(
+        get, set,
+        () => api.data.exportCSV(),
+        'Export accounts as CSV',
+        'Passwords will be exported in plain text. Make sure to store the file in a safe place.',
+      )
     },
 
     importData: async () => {
