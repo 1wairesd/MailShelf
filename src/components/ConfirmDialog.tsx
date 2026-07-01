@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ShieldAlert } from 'lucide-react'
 import { useAccountStore } from '@/store/accountStore'
 import { Button } from './ui/button'
 
@@ -26,12 +26,14 @@ export function ConfirmDialog() {
 
   if (!confirmDialog?.open) return null
 
-  const { title, description, confirmLabel, onConfirm } = confirmDialog
+  const { title, description, confirmLabel, confirmVariant = 'destructive', onConfirm } = confirmDialog
 
   const handleConfirm = () => {
     onConfirm()
     closeConfirm()
   }
+
+  const isDestructive = confirmVariant === 'destructive'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -46,8 +48,13 @@ export function ConfirmDialog() {
         <div className="p-5">
           {/* Icon + title */}
           <div className="flex items-start gap-3 mb-3">
-            <div className="shrink-0 w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center mt-0.5">
-              <AlertTriangle size={16} className="text-red-400" />
+            <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center mt-0.5 ${
+              isDestructive ? 'bg-red-500/10' : 'bg-shelf-accent/10'
+            }`}>
+              {isDestructive
+                ? <AlertTriangle size={16} className="text-red-400" />
+                : <ShieldAlert size={16} className="text-shelf-accent" />
+              }
             </div>
             <div>
               <h2 className="text-sm font-semibold text-shelf-text">{title}</h2>
@@ -67,7 +74,7 @@ export function ConfirmDialog() {
             Cancel
           </Button>
           <Button
-            variant="destructive"
+            variant={confirmVariant}
             size="sm"
             onClick={handleConfirm}
             className="gap-1.5"

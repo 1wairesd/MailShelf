@@ -14,7 +14,7 @@ export function AccountList() {
   const rowVirtualizer = useVirtualizer({
     count: accounts.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 88,
+    estimateSize: () => 104,
     overscan: 10,
   })
 
