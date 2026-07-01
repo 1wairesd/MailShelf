@@ -111,6 +111,48 @@ if (promote) {
 const tag = `v${nextVersion}`
 const isPrerelease = nextVersion.includes('-')
 
+// ── Pre-flight checks ─────────────────────────────────────────────────────────
+
+try {
+  // 1. Working tree must be clean
+  const status = execSync('git status --porcelain', { encoding: 'utf-8' }).trim()
+  if (status) {
+    console.error('\n  ✗ Working tree is not clean. Commit or stash your changes first.\n')
+    console.error(status)
+    process.exit(1)
+  }
+
+  // 2. Must be on main or master
+  const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim()
+  if (branch !== 'main' && branch !== 'master') {
+    console.error(`\n  ✗ You are on branch "${branch}". Releases must be made from main/master.\n`)
+    process.exit(1)
+  }
+
+  // 3. Local branch must be up-to-date with remote
+  execSync('git fetch --quiet origin', { stdio: 'pipe' })
+  const localRef  = execSync('git rev-parse HEAD',           { encoding: 'utf-8' }).trim()
+  const remoteRef = execSync(`git rev-parse origin/${branch}`, { encoding: 'utf-8' }).trim()
+  if (localRef !== remoteRef) {
+    const ahead  = execSync(`git rev-list origin/${branch}..HEAD --count`, { encoding: 'utf-8' }).trim()
+    const behind = execSync(`git rev-list HEAD..origin/${branch} --count`, { encoding: 'utf-8' }).trim()
+    if (Number(behind) > 0) {
+      console.error(`\n  ✗ Your branch is ${behind} commit(s) behind origin/${branch}. Run "git pull" first.\n`)
+      process.exit(1)
+    }
+    if (Number(ahead) > 0) {
+      console.error(`\n  ✗ Your branch is ${ahead} commit(s) ahead of origin/${branch}. Push your changes first.\n`)
+      process.exit(1)
+    }
+  }
+} catch (err) {
+  if (err.status !== undefined) {
+    process.exit(1)
+  }
+  console.error('  ✗ git not found or not a git repository.')
+  process.exit(1)
+}
+
 // ── Confirm ──────────────────────────────────────────────────────────────────
 
 console.log(`\n  Current version : v${current}`)
@@ -124,20 +166,6 @@ rl.close()
 if (answer.toLowerCase() !== 'y') {
   console.log('  Aborted.')
   process.exit(0)
-}
-
-// ── Check working tree ────────────────────────────────────────────────────────
-
-try {
-  const status = execSync('git status --porcelain', { encoding: 'utf-8' }).trim()
-  if (status) {
-    console.error('\n  ✗ Working tree is not clean. Commit or stash your changes first.\n')
-    console.error(status)
-    process.exit(1)
-  }
-} catch {
-  console.error('  ✗ git not found or not a git repository.')
-  process.exit(1)
 }
 
 // ── Bump version ──────────────────────────────────────────────────────────────
@@ -154,7 +182,7 @@ const run = (cmd) => {
 }
 
 try {
-  run(`git add package.json`)
+  run(`git add package.json package-lock.json`)
   run(`git commit -m "chore: release ${tag}"`)
   run(`git tag ${tag}`)
   run(`git push`)
