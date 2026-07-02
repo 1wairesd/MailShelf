@@ -9,7 +9,7 @@ export function TitleBar() {
   return (
     <div
       className={cn(
-        'flex items-center h-10 px-3 border-b border-shelf-border bg-shelf-bg select-none drag-region shrink-0',
+        'flex items-center h-10 pl-3 border-b border-shelf-border bg-shelf-bg select-none drag-region shrink-0',
         'relative z-10'
       )}
     >
