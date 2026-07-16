@@ -103,7 +103,6 @@ if (process.platform === 'win32') {
 }
 
 // Improve font rendering sharpness in Chromium/Electron
-app.commandLine.appendSwitch('disable-lcd-text')
 app.commandLine.appendSwitch('enable-font-antialiasing')
 
 // ─── Window ──────────────────────────────────────────────────────────────────
