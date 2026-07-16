@@ -21,13 +21,11 @@ const PROVIDER_FILTER_OPTIONS = [
 ]
 
 export function SearchBar() {
-  const {
-    searchQuery, setSearch,
-    filters, setSortBy, setSortOrder,
-    setProviderFilter, resetFilters,
-    accounts, stats,
-    openCreateForm,
-  } = useAccountStore()
+  const searchQuery   = useAccountStore(s => s.searchQuery)
+  const filters       = useAccountStore(s => s.filters)
+  const accountCount  = useAccountStore(s => s.accounts.length)
+  const statsTotal    = useAccountStore(s => s.stats.total)
+
   const inputRef = useRef<HTMLInputElement>(null)
   const [showFilters, setShowFilters] = useState(false)
 
@@ -40,12 +38,14 @@ export function SearchBar() {
       }
       if (e.key === 'Escape' && document.activeElement === inputRef.current) {
         inputRef.current?.blur()
-        if (searchQuery) setSearch('')
+        if (useAccountStore.getState().searchQuery) {
+          useAccountStore.getState().setSearch('')
+        }
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [searchQuery, setSearch])
+  }, [])
 
   const hasActiveFilters =
     searchQuery ||
@@ -72,7 +72,7 @@ export function SearchBar() {
               ref={inputRef}
               type="text"
               value={searchQuery}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => useAccountStore.getState().setSearch(e.target.value)}
               placeholder="Search… (Ctrl+F)"
               className={cn(
                 'w-full h-7 bg-shelf-surface border border-shelf-border rounded-md pl-7 pr-7 text-xs text-shelf-text placeholder:text-shelf-text-subtle',
@@ -81,7 +81,7 @@ export function SearchBar() {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearch('')}
+                onClick={() => useAccountStore.getState().setSearch('')}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-shelf-text-subtle hover:text-shelf-text transition-colors"
               >
                 <X size={12} />
@@ -92,7 +92,7 @@ export function SearchBar() {
           {/* Result count */}
           {hasActiveFilters && (
             <span className="text-[11px] text-shelf-text-subtle shrink-0 tabular-nums">
-              {accounts.length}/{stats.total}
+              {accountCount}/{statsTotal}
             </span>
           )}
 
@@ -114,7 +114,7 @@ export function SearchBar() {
           {/* Clear */}
           {hasActiveFilters && (
             <button
-              onClick={resetFilters}
+              onClick={() => useAccountStore.getState().resetFilters()}
               className="text-[11px] text-shelf-text-muted hover:text-shelf-text transition-colors px-1.5 py-1 rounded hover:bg-shelf-elevated shrink-0"
             >
               Clear
@@ -130,7 +130,7 @@ export function SearchBar() {
           <Button
             variant="default"
             size="sm"
-            onClick={openCreateForm}
+            onClick={() => useAccountStore.getState().openCreateForm()}
             className="gap-1.5"
           >
             <Plus size={14} />
@@ -144,19 +144,19 @@ export function SearchBar() {
         <div className="flex items-center gap-2 px-3 pb-2">
           <Select
             value={filters.provider ?? ''}
-            onChange={v => setProviderFilter(v)}
+            onChange={v => useAccountStore.getState().setProviderFilter(v)}
             options={PROVIDER_FILTER_OPTIONS}
             className="w-32"
           />
           <Select
             value={filters.sortBy ?? 'created_at'}
-            onChange={v => setSortBy(v as SortField)}
+            onChange={v => useAccountStore.getState().setSortBy(v as SortField)}
             options={SORT_OPTIONS}
             className="w-32"
           />
           <Select
             value={filters.sortOrder ?? 'desc'}
-            onChange={v => setSortOrder(v as SortOrder)}
+            onChange={v => useAccountStore.getState().setSortOrder(v as SortOrder)}
             options={[
               { value: 'desc', label: 'Newest' },
               { value: 'asc',  label: 'Oldest' },

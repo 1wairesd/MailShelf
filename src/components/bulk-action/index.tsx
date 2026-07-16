@@ -29,8 +29,6 @@ export function BulkActionBar() {
   const { toast } = useToast()
 
   const count = selectedIds.size
-  if (count === 0) return null
-
   const ids = Array.from(selectedIds)
 
   const selectedAccounts = React.useMemo(
@@ -49,6 +47,8 @@ export function BulkActionBar() {
     () => Array.from(new Set(accounts.map(a => a.provider))).sort(),
     [accounts]
   )
+
+  if (count === 0) return null
 
   const plural = (n: number, noun: string) => `${n} ${noun}${n !== 1 ? 's' : ''}`
 

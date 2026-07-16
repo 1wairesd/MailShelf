@@ -38,7 +38,6 @@ interface AccountStore {
   loadAccounts: () => Promise<void>
   loadStats: () => Promise<void>
   loadTags: () => Promise<void>
-  loadTagCounts: () => Promise<void>
   createAccount: (input: CreateAccountInput) => Promise<Account | null>
   updateAccount: (id: string, input: UpdateAccountInput) => Promise<Account | null>
   deleteAccount: (id: string) => Promise<boolean>
@@ -205,15 +204,6 @@ export const useAccountStore = create<AccountStore>()(
       }
     },
 
-    loadTagCounts: async () => {
-      try {
-        const tagCounts = await api.accounts.getTagCounts()
-        set({ tagCounts })
-      } catch (err) {
-        console.error('Failed to load tag counts:', err)
-      }
-    },
-
     createAccount: async (input) => {
       try {
         const account = await api.accounts.create(input)
@@ -335,9 +325,14 @@ export const useAccountStore = create<AccountStore>()(
     bulkUpdateStatus: async (ids, status) => {
       try {
         await api.accounts.bulkUpdateStatus(ids, status)
-        set({ selectedIds: new Set() })
-        await get().loadAccounts()
-        await get().loadStats()
+        // Patch local state — no need to reload the entire list
+        set(state => ({
+          selectedIds: new Set(),
+          accounts: state.accounts.map(a =>
+            ids.includes(a.id) ? { ...a, status } : a
+          ),
+        }))
+        get().loadStats().catch(e => console.error('[store] loadStats after bulkUpdateStatus failed:', e))
       } catch (err) {
         set({ error: String(err) })
       }
@@ -346,8 +341,17 @@ export const useAccountStore = create<AccountStore>()(
     bulkUpdateTag: async (ids, tag, mode) => {
       try {
         await api.accounts.bulkUpdateTag(ids, tag, mode)
-        await get().loadAccounts()
-        await get().loadTags()
+        // Patch local state — no need to reload the entire list
+        set(state => ({
+          accounts: state.accounts.map(a => {
+            if (!ids.includes(a.id)) return a
+            const tags = mode === 'add'
+              ? a.tags.includes(tag) ? a.tags : [...a.tags, tag]
+              : a.tags.filter(t => t !== tag)
+            return { ...a, tags }
+          }),
+        }))
+        get().loadTags().catch(e => console.error('[store] loadTags after bulkUpdateTag failed:', e))
       } catch (err) {
         set({ error: String(err) })
       }
