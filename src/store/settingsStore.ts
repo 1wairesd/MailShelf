@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppSettings } from '@/lib/api'
+import { api, type AppSettings } from '@/lib/api'
 
 type Theme = AppSettings['appearance']['theme']
 
@@ -24,7 +24,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   loadSettings: async () => {
     try {
-      const s = await window.api.settings.get()
+      const s = await api.settings.get()
       const theme = s.appearance?.theme ?? 'system'
       set({ theme })
       applyTheme(theme)
@@ -37,7 +37,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     set({ theme })
     applyTheme(theme)
     try {
-      await window.api.settings.updateAppearance({ theme })
+      await api.settings.updateAppearance({ theme })
     } catch {
       // best-effort
     }

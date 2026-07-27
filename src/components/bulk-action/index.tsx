@@ -18,14 +18,19 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
 }))
 
 export function BulkActionBar() {
+  const selectedIds = useAccountStore(s => s.selectedIds)
+  const accounts    = useAccountStore(s => s.accounts)
+  const allTags     = useAccountStore(s => s.allTags)
+
   const {
-    selectedIds, accounts, allTags,
     bulkDelete, bulkUpdateStatus, bulkUpdateTag,
     clearSelection, selectAll,
     selectByTag, selectByStatus, selectByProvider,
     showConfirm,
-  } = useAccountStore()
-  const { groups, moveAccountsToGroup, loadGroupCounts } = useGroupsStore()
+  } = useAccountStore.getState()
+
+  const { moveAccountsToGroup, loadGroupCounts } = useGroupsStore.getState()
+  const groupsList = useGroupsStore(s => s.groups)
   const { toast } = useToast()
 
   const count = selectedIds.size
@@ -84,7 +89,7 @@ export function BulkActionBar() {
     await loadGroupCounts()
     useAccountStore.getState().loadAccounts()
     const label = groupId
-      ? `"${groups.find(g => g.id === groupId)?.name ?? groupId}"`
+      ? `"${groupsList.find(g => g.id === groupId)?.name ?? groupId}"`
       : 'ungrouped'
     toast(`Moved ${plural(ids.length, 'account')} to ${label}`, 'success')
   }
@@ -119,9 +124,9 @@ export function BulkActionBar() {
 
       <Divider />
 
-      {groups.length > 0 && (
+      {groupsList.length > 0 && (
         <>
-          <GroupBulkMenu groups={groups} onMove={handleMoveToGroup} />
+          <GroupBulkMenu groups={groupsList} onMove={handleMoveToGroup} />
           <Divider />
         </>
       )}

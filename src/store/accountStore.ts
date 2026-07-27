@@ -73,10 +73,6 @@ interface AccountStore {
   openEditForm: (account: Account) => void
   closeForm: () => void
 
-  // Confirm delete (legacy — kept for compatibility, use showConfirm instead)
-  confirmDeleteId: string | null
-  setConfirmDeleteId: (id: string | null) => void
-
   // Universal confirm dialog
   confirmDialog: {
     open: boolean
@@ -133,12 +129,15 @@ function makeExport(
   description: string,
 ): Promise<{ success: boolean; count?: number }> {
   return new Promise(resolve => {
+    let unsub: (() => void) | null = null
+
     get().showConfirm({
       title,
       description,
       confirmLabel: 'Export',
       confirmVariant: 'default',
       onConfirm: async () => {
+        unsub?.()
         try {
           resolve(await apiFn())
         } catch (err) {
@@ -147,11 +146,12 @@ function makeExport(
         }
       },
     })
-    const unsub = useAccountStore.subscribe(
+
+    unsub = useAccountStore.subscribe(
       s => s.confirmDialog,
       (dialog) => {
         if (dialog === null) {
-          unsub()
+          unsub?.()
           resolve({ success: false })
         }
       }
@@ -173,7 +173,6 @@ export const useAccountStore = create<AccountStore>()(
     isFormOpen: false,
     editingAccount: null,
     searchQuery: '',
-    confirmDeleteId: null,
     confirmDialog: null,
 
     loadAccounts: async () => {
@@ -271,7 +270,6 @@ export const useAccountStore = create<AccountStore>()(
           set({
             selectedIds: newSelected,
             activeAccountId: activeAccountId === id ? null : activeAccountId,
-            confirmDeleteId: null,
           })
           await get().loadAccounts()
           await get().loadStats()
@@ -466,10 +464,6 @@ export const useAccountStore = create<AccountStore>()(
 
     closeForm: () => {
       set({ isFormOpen: false, editingAccount: null })
-    },
-
-    setConfirmDeleteId: (id) => {
-      set({ confirmDeleteId: id })
     },
 
     showConfirm: (opts) => {

@@ -92,7 +92,8 @@ declare global {
   }
 }
 
-// Lazy check — evaluated at call time, not at module load time
+// ─── API access ───────────────────────────────────────────────────────────────
+
 function getApi() {
   if (typeof window === 'undefined' || !window.api) {
     throw new Error(
@@ -103,78 +104,43 @@ function getApi() {
   return window.api
 }
 
+/**
+ * Creates a proxy that lazily delegates to window.api[namespace].
+ * This eliminates boilerplate passthrough methods — adding a new method
+ * in preload.ts automatically makes it available here without extra wiring.
+ */
+function proxyNamespace<T extends object>(getNs: () => T): T {
+  return new Proxy({} as T, {
+    get(_target, prop: string) {
+      return (...args: unknown[]) => {
+        const ns = getNs()
+        const fn = (ns as Record<string, unknown>)[prop]
+        if (typeof fn !== 'function') {
+          throw new Error(`[api] ${prop} is not a function`)
+        }
+        return fn.apply(ns, args)
+      }
+    },
+  })
+}
+
+// Window namespace needs special handling — fire-and-forget methods that should not throw
+const windowApi = {
+  minimize: () => { try { getApi().window.minimize() } catch (e) { console.warn(e) } },
+  maximize: () => { try { getApi().window.maximize() } catch (e) { console.warn(e) } },
+  close: () => { try { getApi().window.close() } catch (e) { console.warn(e) } },
+  isMaximized: (): Promise<boolean> => {
+    try { return getApi().window.isMaximized() } catch { return Promise.resolve(false) }
+  },
+}
+
 export const api = {
-  window: {
-    minimize: () => {
-      try { getApi().window.minimize() } catch (e) { console.warn(e) }
-    },
-    maximize: () => {
-      try { getApi().window.maximize() } catch (e) { console.warn(e) }
-    },
-    close: () => {
-      try { getApi().window.close() } catch (e) { console.warn(e) }
-    },
-    isMaximized: (): Promise<boolean> => {
-      try { return getApi().window.isMaximized() } catch { return Promise.resolve(false) }
-    },
-  },
-  accounts: {
-    getAll: (filters?: AccountFilters) => getApi().accounts.getAll(filters),
-    getById: (id: string) => getApi().accounts.getById(id),
-    create: (input: CreateAccountInput) => getApi().accounts.create(input),
-    update: (id: string, input: UpdateAccountInput) => getApi().accounts.update(id, input),
-    delete: (id: string) => getApi().accounts.delete(id),
-    bulkDelete: (ids: string[]) => getApi().accounts.bulkDelete(ids),
-    bulkUpdateStatus: (ids: string[], status: string) => getApi().accounts.bulkUpdateStatus(ids, status),
-    bulkUpdateTag: (ids: string[], tag: string, mode: 'add' | 'remove') => getApi().accounts.bulkUpdateTag(ids, tag, mode),
-    getStats: () => getApi().accounts.getStats(),
-    getTags: () => getApi().accounts.getTags(),
-    getTagCounts: () => getApi().accounts.getTagCounts(),
-    getTagsAndCounts: () => getApi().accounts.getTagsAndCounts(),
-  },
-  tagRules: {
-    getAll: () => getApi().tagRules.getAll(),
-    create: (input: CreateTagRuleInput) => getApi().tagRules.create(input),
-    update: (id: string, input: UpdateTagRuleInput) => getApi().tagRules.update(id, input),
-    delete: (id: string) => getApi().tagRules.delete(id),
-    run: () => getApi().tagRules.run(),
-    onApplied: (cb: Parameters<Window['api']['tagRules']['onApplied']>[0]) =>
-      getApi().tagRules.onApplied(cb),
-  },
-  data: {
-    export: () => getApi().data.export(),
-    exportCSV: () => getApi().data.exportCSV(),
-    import: () => getApi().data.import(),
-  },
-  groups: {
-    getAll: () => getApi().groups.getAll(),
-    getCounts: () => getApi().groups.getCounts(),
-    create: (input: CreateGroupInput) => getApi().groups.create(input),
-    update: (id: string, input: UpdateGroupInput) => getApi().groups.update(id, input),
-    delete: (id: string) => getApi().groups.delete(id),
-    addAccounts: (groupId: string, accountIds: string[]) => getApi().groups.addAccounts(groupId, accountIds),
-    removeAccounts: (groupId: string, accountIds: string[]) => getApi().groups.removeAccounts(groupId, accountIds),
-    moveAccounts: (groupId: string | null, accountIds: string[]) => getApi().groups.moveAccounts(groupId, accountIds),
-    getAccountGroups: (accountId: string) => getApi().groups.getAccountGroups(accountId),
-  },
-  app: {
-    checkForUpdates: () => getApi().app.checkForUpdates(),
-    getVersion: () => getApi().app.getVersion(),
-    openExternal: (url: string) => getApi().app.openExternal(url),
-  },
-  updater: {
-    check: () => getApi().updater.check(),
-    install: () => getApi().updater.install(),
-    onUpdateAvailable: (cb: Parameters<Window['api']['updater']['onUpdateAvailable']>[0]) => getApi().updater.onUpdateAvailable(cb),
-    onUpdateNotAvailable: (cb: Parameters<Window['api']['updater']['onUpdateNotAvailable']>[0]) => getApi().updater.onUpdateNotAvailable(cb),
-    onDownloadProgress: (cb: Parameters<Window['api']['updater']['onDownloadProgress']>[0]) => getApi().updater.onDownloadProgress(cb),
-    onUpdateDownloaded: (cb: Parameters<Window['api']['updater']['onUpdateDownloaded']>[0]) => getApi().updater.onUpdateDownloaded(cb),
-    onError: (cb: Parameters<Window['api']['updater']['onError']>[0]) => getApi().updater.onError(cb),
-  },
-  settings: {
-    get: () => getApi().settings.get(),
-    updateUpdates: (patch: Partial<AppSettings['updates']>) => getApi().settings.updateUpdates(patch),
-    updateAppearance: (patch: Partial<AppSettings['appearance']>) => getApi().settings.updateAppearance(patch),
-    applyUpdaterSettings: () => getApi().settings.applyUpdaterSettings(),
-  },
+  window:   windowApi,
+  accounts: proxyNamespace(() => getApi().accounts),
+  tagRules: proxyNamespace(() => getApi().tagRules),
+  data:     proxyNamespace(() => getApi().data),
+  groups:   proxyNamespace(() => getApi().groups),
+  app:      proxyNamespace(() => getApi().app),
+  updater:  proxyNamespace(() => getApi().updater),
+  settings: proxyNamespace(() => getApi().settings),
 }

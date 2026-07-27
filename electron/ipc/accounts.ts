@@ -8,10 +8,10 @@ import {
   SortOrder,
   UpdateAccountInput,
 } from '../types'
+import { VALID_STATUSES, validId, validIds, ensureDb } from './validators'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const VALID_STATUSES: AccountStatus[] = ['active', 'exhausted', 'waiting-reset', 'dead', 'archived']
 const VALID_SORT_FIELDS: SortField[]  = ['created_at', 'updated_at', 'status', 'email', 'last_used_at']
 const VALID_SORT_ORDERS: SortOrder[]  = ['asc', 'desc']
 
@@ -94,16 +94,7 @@ export function validateFilters(filters: unknown): AccountFilters {
 // ─── IPC handlers ─────────────────────────────────────────────────────────────
 
 export function registerAccountsIpc(getDb: () => DatabaseService | null) {
-  const db = () => {
-    const instance = getDb()
-    if (!instance) throw new Error('Database not initialized')
-    return instance
-  }
-
-  const validId = (id: unknown) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error('Invalid id')
-    return id
-  }
+  const db = () => ensureDb(getDb)
 
   ipcMain.handle('accounts:getAll', (_e, filters: unknown) =>
     db().getAccounts(validateFilters(filters))
@@ -125,29 +116,19 @@ export function registerAccountsIpc(getDb: () => DatabaseService | null) {
     db().deleteAccount(validId(id))
   )
 
-  ipcMain.handle('accounts:bulkDelete', (_e, ids: unknown) => {
-    if (!Array.isArray(ids)) throw new Error('Invalid ids')
-    return db().bulkDeleteAccounts(ids.filter(id => typeof id === 'string' && id.trim()))
-  })
+  ipcMain.handle('accounts:bulkDelete', (_e, ids: unknown) =>
+    db().bulkDeleteAccounts(validIds(ids))
+  )
 
   ipcMain.handle('accounts:bulkUpdateStatus', (_e, ids: unknown, status: unknown) => {
-    if (!Array.isArray(ids)) throw new Error('Invalid ids')
     if (!VALID_STATUSES.includes(status as AccountStatus)) throw new Error('Invalid status')
-    return db().bulkUpdateStatus(
-      ids.filter(id => typeof id === 'string' && id.trim()),
-      status as AccountStatus,
-    )
+    return db().bulkUpdateStatus(validIds(ids), status as AccountStatus)
   })
 
   ipcMain.handle('accounts:bulkUpdateTag', (_e, ids: unknown, tag: unknown, mode: unknown) => {
-    if (!Array.isArray(ids))                        throw new Error('Invalid ids')
-    if (typeof tag !== 'string' || !tag.trim())     throw new Error('Invalid tag')
-    if (mode !== 'add' && mode !== 'remove')        throw new Error('Invalid mode')
-    return db().bulkUpdateTag(
-      ids.filter(id => typeof id === 'string' && id.trim()),
-      tag.trim().toLowerCase().slice(0, 100),
-      mode,
-    )
+    if (typeof tag !== 'string' || !tag.trim()) throw new Error('Invalid tag')
+    if (mode !== 'add' && mode !== 'remove')    throw new Error('Invalid mode')
+    return db().bulkUpdateTag(validIds(ids), tag.trim().toLowerCase().slice(0, 100), mode)
   })
 
   ipcMain.handle('accounts:getStats',         () => db().getStats())

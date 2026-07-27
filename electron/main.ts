@@ -31,8 +31,8 @@ function initAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.channel = channel === 'beta' ? 'beta' : 'latest'
   autoUpdater.allowPrerelease = channel === 'beta'
-  // Disable code signature verification — app is not commercially signed
-  ;(autoUpdater as any).verifyUpdateCodeSignature = false
+  // @ts-expect-error — undocumented electron-updater property, app is not commercially signed
+  autoUpdater.verifyUpdateCodeSignature = false
 
   autoUpdater.on('update-available', (info) => {
     mainWindow?.webContents.send('updater:update-available', {
@@ -259,13 +259,15 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    db?.close()
     app.quit()
   }
 })
 
 app.on('before-quit', () => {
   stopScheduler()
-  db?.close()
+  if (db) {
+    db.close()
+    db = null
+  }
   clearCrypto()
 })

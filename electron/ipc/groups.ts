@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { DatabaseService } from '../database'
 import { CreateGroupInput, UpdateGroupInput } from '../types'
+import { validId, validIds, ensureDb } from './validators'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,21 +53,7 @@ function validateUpdateInput(input: unknown): UpdateGroupInput {
 // ─── IPC handlers ─────────────────────────────────────────────────────────────
 
 export function registerGroupsIpc(getDb: () => DatabaseService | null) {
-  const db = () => {
-    const instance = getDb()
-    if (!instance) throw new Error('Database not initialized')
-    return instance
-  }
-
-  const validId = (id: unknown, name = 'id') => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error(`Invalid ${name}`)
-    return id
-  }
-
-  const validIds = (ids: unknown): string[] => {
-    if (!Array.isArray(ids)) throw new Error('Invalid ids')
-    return ids.filter(id => typeof id === 'string' && id.trim())
-  }
+  const db = () => ensureDb(getDb)
 
   ipcMain.handle('groups:getAll',    () => db().getGroups())
   ipcMain.handle('groups:getCounts', () => db().getGroupCounts())

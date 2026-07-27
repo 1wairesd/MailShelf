@@ -81,20 +81,18 @@ export function AccountList() {
 
 // Separate component so each row subscribes only to its own selection state
 const AccountCardRow = React.memo(function AccountCardRow({ account }: { account: Account }) {
-  const isSelected       = useAccountStore(s => s.selectedIds.has(account.id))
-  const isActive         = useAccountStore(s => s.activeAccountId === account.id)
-  const toggleSelect     = useAccountStore(s => s.toggleSelect)
-  const setActiveAccount = useAccountStore(s => s.setActiveAccount)
+  const isSelected = useAccountStore(s => s.selectedIds.has(account.id))
+  const isActive   = useAccountStore(s => s.activeAccountId === account.id)
 
   const handleSelect = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
-    toggleSelect(account.id)
-  }, [account.id, toggleSelect])
+    useAccountStore.getState().toggleSelect(account.id)
+  }, [account.id])
 
   const handleClick = useCallback(() => {
-    const cur = useAccountStore.getState().activeAccountId
-    setActiveAccount(cur === account.id ? null : account.id)
-  }, [account.id, setActiveAccount])
+    const { activeAccountId, setActiveAccount } = useAccountStore.getState()
+    setActiveAccount(activeAccountId === account.id ? null : account.id)
+  }, [account.id])
 
   return (
     <AccountCard

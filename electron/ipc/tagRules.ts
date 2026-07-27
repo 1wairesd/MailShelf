@@ -6,11 +6,7 @@ import {
   CreateTagRuleInput,
   UpdateTagRuleInput,
 } from '../types'
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const VALID_STATUSES: AccountStatus[]  = ['active', 'exhausted', 'waiting-reset', 'dead', 'archived']
-const VALID_TRIGGERS: TagRuleTrigger[] = ['after_days', 'day_of_month', 'day_of_week']
+import { VALID_STATUSES, VALID_TRIGGERS, validId, ensureDb } from './validators'
 
 // ─── Input validators ─────────────────────────────────────────────────────────
 
@@ -87,16 +83,7 @@ function validateUpdateInput(input: unknown): UpdateTagRuleInput {
 // ─── IPC handlers ─────────────────────────────────────────────────────────────
 
 export function registerTagRulesIpc(getDb: () => DatabaseService | null) {
-  const db = () => {
-    const instance = getDb()
-    if (!instance) throw new Error('Database not initialized')
-    return instance
-  }
-
-  const validId = (id: unknown) => {
-    if (typeof id !== 'string' || !id.trim()) throw new Error('Invalid id')
-    return id
-  }
+  const db = () => ensureDb(getDb)
 
   ipcMain.handle('tagRules:getAll', () => db().getTagRules())
 

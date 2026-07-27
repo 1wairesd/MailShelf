@@ -195,18 +195,18 @@ export class AccountRepository {
   }
 
   bulkDelete(ids: string[]): number {
-    return this.db.transaction(() => {
-      const stmt = this.db.prepare('DELETE FROM accounts WHERE id = ?')
-      return ids.reduce((n, id) => n + stmt.run(id).changes, 0)
-    })()
+    if (ids.length === 0) return 0
+    const placeholders = ids.map(() => '?').join(', ')
+    return this.db.prepare(`DELETE FROM accounts WHERE id IN (${placeholders})`).run(...ids).changes
   }
 
   bulkUpdateStatus(ids: string[], status: string): number {
-    return this.db.transaction(() => {
-      const now  = new Date().toISOString()
-      const stmt = this.db.prepare('UPDATE accounts SET status = ?, updated_at = ? WHERE id = ?')
-      return ids.reduce((n, id) => n + stmt.run(status, now, id).changes, 0)
-    })()
+    if (ids.length === 0) return 0
+    const now = new Date().toISOString()
+    const placeholders = ids.map(() => '?').join(', ')
+    return this.db.prepare(
+      `UPDATE accounts SET status = ?, updated_at = ? WHERE id IN (${placeholders})`
+    ).run(status, now, ...ids).changes
   }
 
   /**
@@ -300,7 +300,7 @@ export class AccountRepository {
     return (this.db.prepare('SELECT * FROM accounts ORDER BY created_at DESC').all() as AccountRow[]).map(rowToAccount)
   }
 
-  exportCSV(): string {
+  exportCSV(): { csv: string; count: number } {
     const accounts = this.exportAll()
     const headers  = ['id', 'email', 'password', 'provider', 'status', 'tags', 'notes', 'created_at', 'updated_at', 'last_used_at', 'archived_at']
     const escape   = (v: unknown) => {
@@ -313,7 +313,7 @@ export class AccountRepository {
       [a.id, a.email, a.password, a.provider, a.status, a.tags.join(';'), a.notes,
        a.created_at, a.updated_at, a.last_used_at ?? '', a.archived_at ?? ''].map(escape).join(',')
     )
-    return [headers.join(','), ...rows].join('\n')
+    return { csv: [headers.join(','), ...rows].join('\n'), count: accounts.length }
   }
 
   import(accounts: CreateAccountInput[]): number {

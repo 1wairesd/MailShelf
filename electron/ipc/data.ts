@@ -3,6 +3,7 @@ import fs from 'fs'
 import { DatabaseService } from '../database'
 import { CreateAccountInput } from '../types'
 import { validateCreateInput } from './accounts'
+import { ensureDb } from './validators'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -53,11 +54,7 @@ export function registerDataIpc(
   getWindow: () => BrowserWindow | null
 ) {
   const win = () => getWindow()!
-  const db  = () => {
-    const instance = getDb()
-    if (!instance) throw new Error('Database not initialized')
-    return instance
-  }
+  const db  = () => ensureDb(getDb)
 
   ipcMain.handle('data:export', async () => {
     const result = await dialog.showSaveDialog(win(), {
@@ -80,10 +77,9 @@ export function registerDataIpc(
     })
     if (result.canceled || !result.filePath) return { success: false }
 
-    const csv      = db().exportAccountsCSV()
-    const accounts = db().exportAccounts()
+    const { csv, count } = db().exportAccountsCSV()
     fs.writeFileSync(result.filePath, csv, 'utf-8')
-    return { success: true, count: accounts.length }
+    return { success: true, count }
   })
 
   ipcMain.handle('data:import', async () => {
