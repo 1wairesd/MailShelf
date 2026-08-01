@@ -12,36 +12,54 @@ import type { AccountRepository } from './accounts'
 // ─── Scheduling helpers ───────────────────────────────────────────────────────
 
 /**
- * Returns the most recent past Date (≤ now) where day-of-month === targetDay.
- * If today IS targetDay, returns today at 00:00:00.
+ * Parse a date string from the database into a Date object.
  *
- * Example: now=2025-05-15, targetDay=1  → 2025-05-01 00:00:00
- *          now=2025-05-01, targetDay=20 → 2025-04-20 00:00:00
+ * SQLite datetime('now') returns strings like "2025-01-01 07:00:00" (no T, no Z).
+ * new Date("2025-01-01 07:00:00") is treated as LOCAL time in Node.js, which is
+ * wrong — all timestamps are stored as UTC. Appending 'Z' forces UTC parsing.
+ *
+ * new Date().toISOString() already includes 'Z', so this is safe for both formats.
+ */
+function parseDbDate(s: string): Date {
+  // Already has timezone info (ends with Z or +HH:MM) — parse as-is
+  if (s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s)) return new Date(s)
+  // SQLite format "YYYY-MM-DD HH:MM:SS" — treat as UTC
+  return new Date(s.replace(' ', 'T') + 'Z')
+}
+
+/**
+ * Returns the most recent past UTC midnight (≤ now) where UTC day-of-month === targetDay.
+ * If today IS targetDay in UTC, returns today at UTC 00:00:00.
+ *
+ * Uses UTC throughout to match how timestamps are stored in the database.
+ *
+ * Example: now=2025-05-15 UTC, targetDay=1  → 2025-05-01T00:00:00Z
+ *          now=2025-05-01 UTC, targetDay=20 → 2025-04-20T00:00:00Z
  */
 function lastOccurrenceDayOfMonth(now: Date, targetDay: number): Date {
-  const y = now.getFullYear()
-  const m = now.getMonth()
-  const d = now.getDate()
+  const y = now.getUTCFullYear()
+  const m = now.getUTCMonth()
+  const d = now.getUTCDate()
 
   if (d >= targetDay) {
-    return new Date(y, m, targetDay, 0, 0, 0, 0)
+    return new Date(Date.UTC(y, m, targetDay, 0, 0, 0, 0))
   }
 
   const prevMonth          = m === 0 ? 11 : m - 1
   const prevYear           = m === 0 ? y - 1 : y
-  const lastDayOfPrevMonth = new Date(y, m, 0).getDate()
-  return new Date(prevYear, prevMonth, Math.min(targetDay, lastDayOfPrevMonth), 0, 0, 0, 0)
+  const lastDayOfPrevMonth = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  return new Date(Date.UTC(prevYear, prevMonth, Math.min(targetDay, lastDayOfPrevMonth), 0, 0, 0, 0))
 }
 
 /**
- * Returns the most recent past Date (≤ now) where weekday === targetDow (0=Sun…6=Sat).
- * If today IS targetDow, returns today at 00:00:00.
+ * Returns the most recent past UTC midnight (≤ now) where UTC weekday === targetDow (0=Sun…6=Sat).
+ * If today IS targetDow in UTC, returns today at UTC 00:00:00.
  */
 function lastOccurrenceDayOfWeek(now: Date, targetDow: number): Date {
-  const daysBack = (now.getDay() - targetDow + 7) % 7
+  const daysBack = (now.getUTCDay() - targetDow + 7) % 7
   const result   = new Date(now)
-  result.setDate(now.getDate() - daysBack)
-  result.setHours(0, 0, 0, 0)
+  result.setUTCDate(now.getUTCDate() - daysBack)
+  result.setUTCHours(0, 0, 0, 0)
   return result
 }
 
@@ -139,7 +157,7 @@ export class TagRulesRepository {
 
     for (const rule of rules) {
       const candidates = this.getCandidates(rule.from_status, rule.tag)
-      const lastRunAt  = rule.last_run_at ? new Date(rule.last_run_at) : null
+      const lastRunAt  = rule.last_run_at ? parseDbDate(rule.last_run_at) : null
       const toUpdate   = this.selectAccountsToUpdate(candidates, rule, now, lastRunAt)
 
       let affected = 0
@@ -186,7 +204,7 @@ export class TagRulesRepository {
     }
 
     for (const row of candidates) {
-      const updatedAt = new Date(row.updated_at)
+      const updatedAt = parseDbDate(row.updated_at)
 
       if (rule.trigger === 'after_days') {
         const diffDays = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24)
