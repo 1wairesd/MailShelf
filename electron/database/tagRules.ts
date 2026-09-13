@@ -66,7 +66,12 @@ function lastOccurrenceDayOfWeek(now: Date, targetDow: number): Date {
 // ─── Row mapper ───────────────────────────────────────────────────────────────
 
 function rowToTagRule(row: TagRuleRow): TagRule {
-  return { ...row, enabled: row.enabled === 1 }
+  return {
+    ...row,
+    enabled:     row.enabled === 1,
+    filter_type: row.filter_type ?? 'tag',  // guard for rows created before migration
+    group_id:    row.group_id ?? null,
+  }
 }
 
 // ─── Repository ───────────────────────────────────────────────────────────────
@@ -91,11 +96,13 @@ export class TagRulesRepository {
     const id  = uuidv4()
     const now = new Date().toISOString()
     this.db.prepare(`
-      INSERT INTO tag_rules (id, tag, from_status, to_status, trigger, trigger_value, enabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tag_rules (id, filter_type, tag, group_id, from_status, to_status, trigger, trigger_value, enabled, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
-      input.tag,
+      input.filter_type,
+      input.filter_type === 'tag'   ? (input.tag ?? '')      : '',
+      input.filter_type === 'group' ? (input.group_id ?? null) : null,
       input.from_status,
       input.to_status,
       input.trigger,
@@ -110,10 +117,22 @@ export class TagRulesRepository {
     const existing = this.getById(id)
     if (!existing) return null
 
+    const nextFilterType = input.filter_type ?? existing.filter_type
+    const nextTag =
+      input.tag !== undefined         ? input.tag
+      : nextFilterType === 'tag'      ? existing.tag
+      : ''
+    const nextGroupId =
+      input.group_id !== undefined    ? input.group_id
+      : nextFilterType === 'group'    ? existing.group_id
+      : null
+
     const now = new Date().toISOString()
     this.db.prepare(`
       UPDATE tag_rules SET
+        filter_type   = ?,
         tag           = ?,
+        group_id      = ?,
         from_status   = ?,
         to_status     = ?,
         trigger       = ?,
@@ -122,7 +141,9 @@ export class TagRulesRepository {
         updated_at    = ?
       WHERE id = ?
     `).run(
-      input.tag           ?? existing.tag,
+      nextFilterType,
+      nextTag,
+      nextGroupId,
       input.from_status   ?? existing.from_status,
       input.to_status     ?? existing.to_status,
       input.trigger       ?? existing.trigger,
@@ -139,16 +160,35 @@ export class TagRulesRepository {
   }
 
   /**
+   * Same as run() but ignores the period guard — resets last_run_at for all
+   * calendar rules before evaluating, so manual "Run now" always fires.
+   */
+  runForced(): TagRuleRunResult[] {
+    // Clear last_run_at for all enabled calendar rules so the period guard
+    // doesn't block them.
+    this.db.prepare(
+      `UPDATE tag_rules SET last_run_at = NULL
+       WHERE enabled = 1 AND trigger IN ('day_of_month', 'day_of_week')`
+    ).run()
+    return this.run()
+  }
+
+  /**
    * Evaluate all enabled tag rules and apply status transitions.
    *
    * Catch-up logic: if the app was offline and missed scheduled firings,
    * the rule fires immediately on the next startup.
    *
    * after_days   — fires if account.updated_at is older than N days
-   * day_of_month — fires per-account if it was already in the target status
+   * day_of_month — fires per-account if it was already in the from_status
    *                before the last occurrence of trigger_value day-of-month,
    *                and the rule hasn't already run since that occurrence
    * day_of_week  — same logic but for weekday
+   *
+   * last_run_at is only stamped when the rule was actually evaluated for the
+   * current period. An out-of-window call (e.g. startup before the trigger
+   * day in UTC) does NOT write last_run_at, so the firing opportunity is
+   * preserved for the next hourly tick.
    */
   run(): TagRuleRunResult[] {
     const rules   = this.getAll().filter(r => r.enabled)
@@ -156,15 +196,36 @@ export class TagRulesRepository {
     const now     = new Date()
 
     for (const rule of rules) {
-      const candidates = this.getCandidates(rule.from_status, rule.tag)
-      const lastRunAt  = rule.last_run_at ? parseDbDate(rule.last_run_at) : null
-      const toUpdate   = this.selectAccountsToUpdate(candidates, rule, now, lastRunAt)
+      const lastRunAt = rule.last_run_at ? parseDbDate(rule.last_run_at) : null
+
+      // For calendar triggers, compute the most recent occurrence and check
+      // whether this period has already been evaluated. Skip (without touching
+      // last_run_at) if we're still inside the same period.
+      let lastOccurrence: Date | null = null
+      if (rule.trigger === 'day_of_month') {
+        lastOccurrence = lastOccurrenceDayOfMonth(now, rule.trigger_value)
+      } else if (rule.trigger === 'day_of_week') {
+        lastOccurrence = lastOccurrenceDayOfWeek(now, rule.trigger_value)
+      }
+
+      if (lastOccurrence !== null) {
+        const notYetRun = lastRunAt === null || lastRunAt < lastOccurrence
+        if (!notYetRun) {
+          // Already evaluated this period — nothing to do, don't touch last_run_at.
+          results.push({ ruleId: rule.id, affected: 0 })
+          continue
+        }
+      }
+
+      const candidates = this.getCandidates(rule.from_status, rule)
+      const toUpdate   = this.selectAccountsToUpdate(candidates, rule, now, lastOccurrence)
 
       let affected = 0
       if (toUpdate.length > 0) {
         affected = this.accounts.bulkUpdateStatus(toUpdate, rule.to_status)
       }
 
+      // Stamp last_run_at only after a genuine evaluation pass for this period.
       this.db.prepare('UPDATE tag_rules SET last_run_at = ? WHERE id = ?')
         .run(now.toISOString(), rule.id)
 
@@ -176,32 +237,40 @@ export class TagRulesRepository {
 
   private getCandidates(
     fromStatus: string,
-    tag: string,
+    rule: TagRule,
   ): { id: string; updated_at: string }[] {
-    const rows = this.db.prepare(
-      'SELECT id, tags, updated_at FROM accounts WHERE status = ?'
-    ).all(fromStatus) as { id: string; tags: string; updated_at: string }[]
+    if (rule.filter_type === 'tag') {
+      // Post-filter in JS — tags are stored as JSON array
+      const rows = this.db.prepare(
+        'SELECT id, tags, updated_at FROM accounts WHERE status = ?'
+      ).all(fromStatus) as { id: string; tags: string; updated_at: string }[]
+      return rows.filter(row => {
+        try { return (JSON.parse(row.tags) as string[]).includes(rule.tag) }
+        catch { return false }
+      })
+    }
 
-    return rows.filter(row => {
-      try { return (JSON.parse(row.tags) as string[]).includes(tag) }
-      catch { return false }
-    })
+    if (rule.filter_type === 'group' && rule.group_id) {
+      return this.db.prepare(
+        `SELECT id, updated_at FROM accounts
+         WHERE status = ?
+           AND id IN (SELECT account_id FROM account_groups WHERE group_id = ?)`
+      ).all(fromStatus, rule.group_id) as { id: string; updated_at: string }[]
+    }
+
+    // filter_type === 'all'
+    return this.db.prepare(
+      'SELECT id, updated_at FROM accounts WHERE status = ?'
+    ).all(fromStatus) as { id: string; updated_at: string }[]
   }
 
   private selectAccountsToUpdate(
     candidates: { id: string; updated_at: string }[],
     rule: TagRule,
     now: Date,
-    lastRunAt: Date | null,
+    lastOccurrence: Date | null,
   ): string[] {
     const toUpdate: string[] = []
-
-    let lastOccurrence: Date | null = null
-    if (rule.trigger === 'day_of_month') {
-      lastOccurrence = lastOccurrenceDayOfMonth(now, rule.trigger_value)
-    } else if (rule.trigger === 'day_of_week') {
-      lastOccurrence = lastOccurrenceDayOfWeek(now, rule.trigger_value)
-    }
 
     for (const row of candidates) {
       const updatedAt = parseDbDate(row.updated_at)
@@ -210,11 +279,9 @@ export class TagRulesRepository {
         const diffDays = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24)
         if (diffDays >= rule.trigger_value) toUpdate.push(row.id)
       } else if (lastOccurrence !== null) {
-        // Fire only if the account was already waiting when the trigger day arrived,
-        // and the rule hasn't already run since that occurrence.
-        const wasWaiting      = updatedAt < lastOccurrence
-        const notYetRun       = lastRunAt === null || lastRunAt < lastOccurrence
-        if (wasWaiting && notYetRun) toUpdate.push(row.id)
+        // Fire only if the account was already in from_status when the trigger day arrived.
+        // The notYetRun guard is handled in run() before we reach here.
+        if (updatedAt < lastOccurrence) toUpdate.push(row.id)
       }
     }
 

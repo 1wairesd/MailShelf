@@ -72,7 +72,8 @@ export class DatabaseService {
   createTagRule   = (input: CreateTagRuleInput)                 => this.tagRules.create(input)
   updateTagRule   = (id: string, input: UpdateTagRuleInput)     => this.tagRules.update(id, input)
   deleteTagRule   = (id: string)                                => this.tagRules.delete(id)
-  runTagRules     = ()                                          => this.tagRules.run()
+  runTagRules       = ()                                          => this.tagRules.run()
+  runTagRulesForced = ()                                          => this.tagRules.runForced()
 
   // ─── Groups ─────────────────────────────────────────────────────────────────
 

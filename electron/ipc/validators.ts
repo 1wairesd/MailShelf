@@ -1,9 +1,10 @@
-import { AccountStatus, TagRuleTrigger } from '../types'
+import { AccountStatus, TagRuleTrigger, TagRuleFilterType } from '../types'
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
 
-export const VALID_STATUSES: AccountStatus[] = ['active', 'exhausted', 'waiting-reset', 'dead', 'archived']
-export const VALID_TRIGGERS: TagRuleTrigger[] = ['after_days', 'day_of_month', 'day_of_week']
+export const VALID_STATUSES: AccountStatus[]     = ['active', 'exhausted', 'waiting-reset', 'dead', 'archived']
+export const VALID_TRIGGERS: TagRuleTrigger[]    = ['after_days', 'day_of_month', 'day_of_week']
+export const VALID_FILTER_TYPES: TagRuleFilterType[] = ['tag', 'group', 'all']
 
 // ─── Shared validators ────────────────────────────────────────────────────────
 

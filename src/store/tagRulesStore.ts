@@ -66,7 +66,7 @@ export const useTagRulesStore = create<TagRulesStore>((set, get) => ({
 
   runRules: async () => {
     try {
-      const results = await api.tagRules.run()
+      const results = await api.tagRules.runForced()
       set({ lastRunResults: results })
       await get().loadRules()
       return results

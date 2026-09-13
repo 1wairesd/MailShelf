@@ -84,4 +84,12 @@ export function migrate(db: Database.Database): void {
   if (!cols.includes('archived_at')) {
     db.exec('ALTER TABLE accounts ADD COLUMN archived_at TEXT')
   }
+
+  const ruleCols = (db.prepare('PRAGMA table_info(tag_rules)').all() as { name: string }[]).map(c => c.name)
+  if (!ruleCols.includes('filter_type')) {
+    db.exec("ALTER TABLE tag_rules ADD COLUMN filter_type TEXT NOT NULL DEFAULT 'tag'")
+  }
+  if (!ruleCols.includes('group_id')) {
+    db.exec('ALTER TABLE tag_rules ADD COLUMN group_id TEXT')
+  }
 }

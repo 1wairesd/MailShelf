@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Play, X, Pencil, Check, Clock, Calendar, Hash, ChevronRight } from 'lucide-react'
+import type React from 'react'
+import { Plus, Trash2, Play, X, Pencil, Check, Clock, Calendar, Hash, ChevronRight, Folder, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTagRulesStore } from '@/store/tagRulesStore'
 import { useAccountStore } from '@/store/accountStore'
+import { useGroupsStore } from '@/store/groupsStore'
 import { Button } from './ui/button'
 import { useToast } from './ui/toast'
-import type { TagRule, CreateTagRuleInput, TagRuleTrigger } from '../../shared/types'
+import type { TagRule, CreateTagRuleInput, TagRuleTrigger, TagRuleFilterType, Group } from '../../shared/types'
 import { AccountStatus, STATUS_CONFIG } from '@/types'
 
 interface TagRulesModalProps {
@@ -58,70 +60,155 @@ function triggerLabel(rule: TagRule): string {
 
 interface RuleFormProps {
   allTags: string[]
+  groups: Group[]
   initial?: TagRule
   onSave: (input: CreateTagRuleInput) => Promise<void>
   onCancel: () => void
 }
 
-function RuleForm({ allTags, initial, onSave, onCancel }: RuleFormProps) {
-  const [tag, setTag] = useState(initial?.tag ?? '')
+function RuleForm({ allTags, groups, initial, onSave, onCancel }: RuleFormProps) {
+  const [filterType, setFilterType] = useState<TagRuleFilterType>(initial?.filter_type ?? 'tag')
+  const [tag, setTag]               = useState(initial?.tag ?? '')
+  const [groupId, setGroupId]       = useState<string>(initial?.group_id ?? '')
   const [fromStatus, setFromStatus] = useState<AccountStatus>(initial?.from_status ?? 'waiting-reset')
-  const [toStatus, setToStatus] = useState<AccountStatus>(initial?.to_status ?? 'active')
-  const [trigger, setTrigger] = useState<TagRuleTrigger>(initial?.trigger ?? 'after_days')
+  const [toStatus, setToStatus]     = useState<AccountStatus>(initial?.to_status ?? 'active')
+  const [trigger, setTrigger]       = useState<TagRuleTrigger>(initial?.trigger ?? 'after_days')
   const [triggerValue, setTriggerValue] = useState(initial?.trigger_value ?? 30)
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving]         = useState(false)
 
   const triggerMin = trigger === 'after_days' ? 1 : trigger === 'day_of_month' ? 1 : 0
   const triggerMax = trigger === 'after_days' ? 3650 : trigger === 'day_of_month' ? 28 : 6
 
+  const isValid =
+    filterType === 'all' ||
+    (filterType === 'tag'   && tag.trim().length > 0) ||
+    (filterType === 'group' && groupId.length > 0)
+
   const handleTriggerChange = (t: TagRuleTrigger) => {
     setTrigger(t)
-    // Reset to sensible default for the new trigger type
-    if (t === 'after_days') setTriggerValue(30)
+    if (t === 'after_days')   setTriggerValue(30)
     else if (t === 'day_of_month') setTriggerValue(1)
     else setTriggerValue(1) // Monday
   }
 
   const handleSubmit = async () => {
-    if (!tag.trim()) return
+    if (!isValid) return
     setSaving(true)
-    await onSave({ tag: tag.trim().toLowerCase(), from_status: fromStatus, to_status: toStatus, trigger, trigger_value: triggerValue })
+    await onSave({
+      filter_type:   filterType,
+      tag:           filterType === 'tag'   ? tag.trim().toLowerCase() : undefined,
+      group_id:      filterType === 'group' ? groupId : undefined,
+      from_status:   fromStatus,
+      to_status:     toStatus,
+      trigger,
+      trigger_value: triggerValue,
+    })
     setSaving(false)
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Tag */}
+      {/* Filter type selector */}
       <div>
         <label className="block text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle mb-1.5">
-          Tag
+          Apply to
         </label>
-        {allTags.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {allTags.map(t => (
-              <button
-                key={t}
-                onClick={() => setTag(t)}
-                className={cn(
-                  'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors',
-                  tag === t
-                    ? 'bg-shelf-accent/20 border-shelf-accent text-shelf-accent'
-                    : 'border-shelf-border text-shelf-text-muted hover:border-shelf-accent/50 hover:text-shelf-text'
-                )}
-              >
-                <Hash size={9} />
-                {t}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <input
-          value={tag}
-          onChange={e => setTag(e.target.value)}
-          placeholder="or type a tag name…"
-          className="mt-2 w-full bg-shelf-elevated border border-shelf-border rounded-md px-3 py-1.5 text-sm text-shelf-text placeholder:text-shelf-text-subtle focus:outline-none focus:border-shelf-accent transition-colors"
-        />
+        <div className="flex gap-1.5">
+          {([
+            { value: 'tag',   label: 'Tag',    Icon: Hash   },
+            { value: 'group', label: 'Group',  Icon: Folder },
+            { value: 'all',   label: 'All',    Icon: Users  },
+          ] as { value: TagRuleFilterType; label: string; Icon: React.ElementType }[]).map(({ value, label, Icon }) => (
+            <button
+              key={value}
+              onClick={() => setFilterType(value)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                filterType === value
+                  ? 'bg-shelf-accent/20 border-shelf-accent text-shelf-accent'
+                  : 'border-shelf-border text-shelf-text-muted hover:border-shelf-accent/50 hover:text-shelf-text'
+              )}
+            >
+              <Icon size={11} />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Tag picker */}
+      {filterType === 'tag' && (
+        <div>
+          <label className="block text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle mb-1.5">
+            Tag
+          </label>
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {allTags.map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTag(t)}
+                  className={cn(
+                    'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors',
+                    tag === t
+                      ? 'bg-shelf-accent/20 border-shelf-accent text-shelf-accent'
+                      : 'border-shelf-border text-shelf-text-muted hover:border-shelf-accent/50 hover:text-shelf-text'
+                  )}
+                >
+                  <Hash size={9} />
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            value={tag}
+            onChange={e => setTag(e.target.value)}
+            placeholder="or type a tag name…"
+            className="w-full bg-shelf-elevated border border-shelf-border rounded-md px-3 py-1.5 text-sm text-shelf-text placeholder:text-shelf-text-subtle focus:outline-none focus:border-shelf-accent transition-colors"
+          />
+        </div>
+      )}
+
+      {/* Group picker */}
+      {filterType === 'group' && (
+        <div>
+          <label className="block text-[10px] font-semibold uppercase tracking-widest text-shelf-text-subtle mb-1.5">
+            Group
+          </label>
+          {groups.length === 0 ? (
+            <p className="text-xs text-shelf-text-subtle py-1">No groups created yet.</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {groups.map(g => (
+                <button
+                  key={g.id}
+                  onClick={() => setGroupId(g.id)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm border transition-colors text-left',
+                    groupId === g.id
+                      ? 'border-shelf-accent bg-shelf-accent/10 text-shelf-text'
+                      : 'border-shelf-border text-shelf-text-muted hover:border-shelf-accent/50 hover:bg-shelf-elevated'
+                  )}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: g.color }}
+                  />
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* "All accounts" notice */}
+      {filterType === 'all' && (
+        <p className="text-xs text-shelf-text-subtle px-1">
+          Rule will apply to <span className="text-shelf-text font-medium">all accounts</span> with the selected status, regardless of tags or group.
+        </p>
+      )}
 
       {/* From → To status */}
       <div className="flex items-center gap-3">
@@ -244,7 +331,7 @@ function RuleForm({ allTags, initial, onSave, onCancel }: RuleFormProps) {
           variant="default"
           size="sm"
           onClick={handleSubmit}
-          disabled={!tag.trim() || saving}
+          disabled={!isValid || saving}
           className="flex-1 gap-1.5"
         >
           {saving ? (
@@ -263,14 +350,20 @@ function RuleForm({ allTags, initial, onSave, onCancel }: RuleFormProps) {
 
 interface RuleCardProps {
   rule: TagRule
+  groupName: string | null
   onEdit: () => void
   onDelete: () => void
   onToggle: () => void
 }
 
-function RuleCard({ rule, onEdit, onDelete, onToggle }: RuleCardProps) {
+function RuleCard({ rule, groupName, onEdit, onDelete, onToggle }: RuleCardProps) {
   const fromCfg = STATUS_CONFIG[rule.from_status]
   const toCfg = STATUS_CONFIG[rule.to_status]
+
+  const filterLabel =
+    rule.filter_type === 'tag'   ? <><Hash size={9} className="text-shelf-accent" />{rule.tag}</> :
+    rule.filter_type === 'group' ? <><Folder size={9} className="text-shelf-accent" />{groupName ?? 'Unknown group'}</> :
+                                   <><Users size={9} className="text-shelf-accent" />All accounts</>
 
   return (
     <div className={cn(
@@ -295,11 +388,10 @@ function RuleCard({ rule, onEdit, onDelete, onToggle }: RuleCardProps) {
         </button>
 
         <div className="flex-1 min-w-0">
-          {/* Tag + trigger */}
+          {/* Filter label + trigger */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="flex items-center gap-1 text-xs font-mono bg-shelf-elevated px-2 py-0.5 rounded-full border border-shelf-border text-shelf-text">
-              <Hash size={9} className="text-shelf-accent" />
-              {rule.tag}
+              {filterLabel}
             </span>
             <span className="flex items-center gap-1 text-xs text-shelf-text-muted">
               <Clock size={10} />
@@ -354,6 +446,7 @@ function RuleCard({ rule, onEdit, onDelete, onToggle }: RuleCardProps) {
 export function TagRulesModal({ open, onClose }: TagRulesModalProps) {
   const { rules, isLoading, lastRunResults, loadRules, createRule, updateRule, deleteRule, runRules } = useTagRulesStore()
   const { allTags, loadAccounts, loadStats } = useAccountStore()
+  const { groups, loadGroups } = useGroupsStore()
   const { toast } = useToast()
 
   const [showForm, setShowForm] = useState(false)
@@ -363,6 +456,7 @@ export function TagRulesModal({ open, onClose }: TagRulesModalProps) {
   useEffect(() => {
     if (open) {
       loadRules()
+      loadGroups()
     }
   }, [open])
 
@@ -474,6 +568,7 @@ export function TagRulesModal({ open, onClose }: TagRulesModalProps) {
               </h3>
               <RuleForm
                 allTags={allTags}
+                groups={groups}
                 initial={editingRule ?? undefined}
                 onSave={editingRule ? handleEdit : handleCreate}
                 onCancel={() => { setShowForm(false); setEditingRule(null) }}
@@ -504,6 +599,7 @@ export function TagRulesModal({ open, onClose }: TagRulesModalProps) {
                 <RuleCard
                   key={rule.id}
                   rule={rule}
+                  groupName={rule.group_id ? (groups.find(g => g.id === rule.group_id)?.name ?? null) : null}
                   onEdit={() => { setEditingRule(rule); setShowForm(false) }}
                   onDelete={() => handleDelete(rule.id)}
                   onToggle={() => handleToggle(rule)}

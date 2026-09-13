@@ -101,10 +101,22 @@ export interface AccountStats {
  */
 export type TagRuleTrigger = 'after_days' | 'day_of_month' | 'day_of_week'
 
+/**
+ * How accounts are filtered for this rule:
+ * - 'tag'   — only accounts that have the specified tag
+ * - 'group' — only accounts that belong to the specified group
+ * - 'all'   — all accounts regardless of tags or group
+ */
+export type TagRuleFilterType = 'tag' | 'group' | 'all'
+
 export interface TagRule {
   id: string
-  /** The tag this rule applies to (e.g. "waiting-reset") */
+  /** How to filter accounts: by tag, by group, or all */
+  filter_type: TagRuleFilterType
+  /** The tag to filter by — only used when filter_type === 'tag' */
   tag: string
+  /** The group ID to filter by — only used when filter_type === 'group' */
+  group_id: string | null
   /** Only accounts with this status are eligible */
   from_status: AccountStatus
   /** Status to transition to when the rule fires */
@@ -120,7 +132,11 @@ export interface TagRule {
 }
 
 export interface CreateTagRuleInput {
-  tag: string
+  filter_type: TagRuleFilterType
+  /** Required when filter_type === 'tag' */
+  tag?: string
+  /** Required when filter_type === 'group' */
+  group_id?: string | null
   from_status: AccountStatus
   to_status: AccountStatus
   trigger: TagRuleTrigger
@@ -129,7 +145,9 @@ export interface CreateTagRuleInput {
 }
 
 export interface UpdateTagRuleInput {
+  filter_type?: TagRuleFilterType
   tag?: string
+  group_id?: string | null
   from_status?: AccountStatus
   to_status?: AccountStatus
   trigger?: TagRuleTrigger

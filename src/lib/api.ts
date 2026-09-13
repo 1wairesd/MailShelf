@@ -44,6 +44,7 @@ declare global {
         update: (id: string, input: UpdateTagRuleInput) => Promise<TagRule | null>
         delete: (id: string) => Promise<boolean>
         run: () => Promise<TagRuleRunResult[]>
+        runForced: () => Promise<TagRuleRunResult[]>
         onApplied: (cb: (data: { results: TagRuleRunResult[]; totalAffected: number }) => void) => () => void
       }
       data: {

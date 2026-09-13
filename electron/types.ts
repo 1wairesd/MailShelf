@@ -39,7 +39,9 @@ export interface AccountRow {
 /** Raw DB row for tag_rules — enabled stored as 0/1 integer */
 export interface TagRuleRow {
   id: string
+  filter_type: import('../shared/types').TagRuleFilterType
   tag: string
+  group_id: string | null
   from_status: import('../shared/types').AccountStatus
   to_status: import('../shared/types').AccountStatus
   trigger: import('../shared/types').TagRuleTrigger

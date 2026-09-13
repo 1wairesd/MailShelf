@@ -50,6 +50,8 @@ const api = {
       ipcRenderer.invoke('tagRules:delete', id),
     run: () =>
       ipcRenderer.invoke('tagRules:run'),
+    runForced: () =>
+      ipcRenderer.invoke('tagRules:runForced'),
     onApplied: (cb: (data: { results: { ruleId: string; affected: number }[]; totalAffected: number }) => void) => {
       const handler = (_e: Electron.IpcRendererEvent, data: Parameters<typeof cb>[0]) => cb(data)
       ipcRenderer.on('tagRules:applied', handler)
