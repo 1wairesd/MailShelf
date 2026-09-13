@@ -10,6 +10,7 @@ export type {
   AccountStats,
   TagRule,
   TagRuleTrigger,
+  TagRuleFilterType,
   CreateTagRuleInput,
   UpdateTagRuleInput,
   TagRuleRunResult,
