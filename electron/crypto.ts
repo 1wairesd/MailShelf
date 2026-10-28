@@ -11,23 +11,40 @@ const AUTH_TAG_LENGTH = 16     // bytes, GCM standard
 let masterKey: Buffer | null = null
 
 /**
+ * Outcome of initCrypto, so callers can react to data-affecting events.
+ * - 'loaded'      — existing key loaded successfully; stored data is readable.
+ * - 'created'     — no key existed; a fresh one was generated (first run).
+ * - 'regenerated' — an existing key could not be loaded and was replaced.
+ *                   Any previously-encrypted passwords are now UNRECOVERABLE.
+ * - 'fallback'    — OS keychain unavailable; key derived via PBKDF2 fallback.
+ */
+export type CryptoInitResult = 'loaded' | 'created' | 'regenerated' | 'fallback'
+
+/**
  * Load or generate the master encryption key.
  * Protected by Electron safeStorage (DPAPI on Windows, Keychain on macOS, libsecret on Linux).
+ *
+ * Returns a CryptoInitResult describing what happened. In particular, a
+ * 'regenerated' result signals irreversible loss of previously-stored
+ * passwords and should be surfaced to the user by the caller.
  */
-export function initCrypto(userDataPath: string): void {
+export function initCrypto(userDataPath: string): CryptoInitResult {
   const keyPath = path.join(userDataPath, KEY_FILE)
 
   if (safeStorage.isEncryptionAvailable()) {
+    let keyExisted = false
     if (fs.existsSync(keyPath)) {
+      keyExisted = true
       try {
         const encryptedKey = fs.readFileSync(keyPath)
         const keyBase64 = safeStorage.decryptString(encryptedKey)
         masterKey = Buffer.from(keyBase64, 'base64')
         if (masterKey.length !== 32) throw new Error('Invalid key length')
-        return
+        return 'loaded'
       } catch {
         // Key corrupted or wrong — generate new one.
         // Existing encrypted data will be unreadable, but security is maintained.
+        masterKey = null
         try { fs.unlinkSync(keyPath) } catch { /* ignore */ }
       }
     }
@@ -36,6 +53,7 @@ export function initCrypto(userDataPath: string): void {
     const encryptedKey = safeStorage.encryptString(newKey.toString('base64'))
     fs.writeFileSync(keyPath, encryptedKey, { mode: 0o600 })
     masterKey = newKey
+    return keyExisted ? 'regenerated' : 'created'
   } else {
     // Fallback: PBKDF2 with stored salt.
     // Less secure than safeStorage but better than plaintext.
@@ -46,6 +64,7 @@ export function initCrypto(userDataPath: string): void {
       'Consider running the app in a desktop session with a keyring service (libsecret/KWallet on Linux).'
     )
     masterKey = deriveKeyFromMachine(userDataPath)
+    return 'fallback'
   }
 }
 
