@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import path from 'path'
 import { DatabaseService } from './database'
@@ -201,15 +201,41 @@ function createWindow() {
 
 // ─── Database ─────────────────────────────────────────────────────────────────
 
+// Set when the master key had to be regenerated, meaning any previously-stored
+// passwords are now unrecoverable. Surfaced to the user once the window exists.
+let encryptionKeyWasRegenerated = false
+
 function initDatabase() {
   try {
     const userDataPath = app.getPath('userData')
     initSettings(userDataPath)
-    initCrypto(userDataPath)
+    const cryptoResult = initCrypto(userDataPath)
+    encryptionKeyWasRegenerated = cryptoResult === 'regenerated'
     db = new DatabaseService(userDataPath)
   } catch (err) {
     console.error('[MailShelf] FATAL: Database init failed:', err)
   }
+}
+
+/**
+ * If the encryption key was regenerated, previously-saved passwords can no
+ * longer be decrypted. Tell the user plainly rather than failing silently.
+ */
+function notifyIfKeyRegenerated() {
+  if (!encryptionKeyWasRegenerated) return
+  encryptionKeyWasRegenerated = false
+  dialog.showMessageBox(mainWindow ?? undefined as never, {
+    type: 'warning',
+    title: 'Encryption key reset',
+    message: 'Your saved passwords could not be unlocked',
+    detail:
+      'MailShelf could not read its encryption key, so a new one was created. ' +
+      'Any passwords saved before this point can no longer be decrypted and will ' +
+      'appear blank. Account details, tags and groups are unaffected. ' +
+      'Re-enter passwords to store them under the new key.',
+    buttons: ['OK'],
+    noLink: true,
+  })
 }
 
 // ─── IPC ──────────────────────────────────────────────────────────────────────
@@ -249,6 +275,7 @@ app.whenReady().then(() => {
   initDatabase()
   registerIpc()
   createWindow()
+  notifyIfKeyRegenerated()
   startScheduler(() => db, () => mainWindow)
   initAutoUpdater()
 

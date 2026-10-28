@@ -33,7 +33,9 @@
     "release:rc": "node scripts/release.mjs rc",
     "release:stable": "node scripts/release.mjs stable",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "better-sqlite3": "^12.10.0",
@@ -72,6 +74,7 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
+    "vitest": "^2.1.9",
     "wait-on": "^7.2.0",
     "zustand": "^4.5.0"
   },

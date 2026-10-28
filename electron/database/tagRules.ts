@@ -20,7 +20,7 @@ import type { AccountRepository } from './accounts'
  *
  * new Date().toISOString() already includes 'Z', so this is safe for both formats.
  */
-function parseDbDate(s: string): Date {
+export function parseDbDate(s: string): Date {
   // Already has timezone info (ends with Z or +HH:MM) — parse as-is
   if (s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s)) return new Date(s)
   // SQLite format "YYYY-MM-DD HH:MM:SS" — treat as UTC
@@ -36,7 +36,7 @@ function parseDbDate(s: string): Date {
  * Example: now=2025-05-15 UTC, targetDay=1  → 2025-05-01T00:00:00Z
  *          now=2025-05-01 UTC, targetDay=20 → 2025-04-20T00:00:00Z
  */
-function lastOccurrenceDayOfMonth(now: Date, targetDay: number): Date {
+export function lastOccurrenceDayOfMonth(now: Date, targetDay: number): Date {
   const y = now.getUTCFullYear()
   const m = now.getUTCMonth()
   const d = now.getUTCDate()
@@ -55,7 +55,7 @@ function lastOccurrenceDayOfMonth(now: Date, targetDay: number): Date {
  * Returns the most recent past UTC midnight (≤ now) where UTC weekday === targetDow (0=Sun…6=Sat).
  * If today IS targetDow in UTC, returns today at UTC 00:00:00.
  */
-function lastOccurrenceDayOfWeek(now: Date, targetDow: number): Date {
+export function lastOccurrenceDayOfWeek(now: Date, targetDow: number): Date {
   const daysBack = (now.getUTCDay() - targetDow + 7) % 7
   const result   = new Date(now)
   result.setUTCDate(now.getUTCDate() - daysBack)
